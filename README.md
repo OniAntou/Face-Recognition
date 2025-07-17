@@ -1,15 +1,18 @@
 # FaceRecognition
 Face Recognition using Java Language + OpenCV Library
+# Instruction
+Place your image (e.g., input_image.jpg) in the Image_Test folder.
 
-Put the image in the Image_Test folder
+Execute FaceRecognition.java.
 
-Run the FaceRecognition.java
+The processed image, with faces highlighted, is saved in the Image_Output folder (e.g., result.jpg).
 
-The result image will be in the Image_Output folder
+# Configuration:
+Update Image_Test and Image_Output paths in the code to your local directories.
 
-Make sure to change the Image_Test and Image_Output path
+Ensure haarcascade_frontalface_default.xml is in the project directory or update its path.
 
-Credit:
+# Credit:
 
 https://github.com/OniAntou
 
