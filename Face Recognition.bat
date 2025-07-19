@@ -258,19 +258,55 @@ echo.
 :: Change to script directory
 pushd "%~dp0"
 
+:: Check if Maven is in PATH
+echo Checking Maven configuration...
+where mvn >nul 2>&1
+if %errorlevel% neq 0 (
+    :: Try to find Maven in common locations
+    set "MAVEN_FOUND=0"
+    
+    if exist "C:\Program Files\apache-maven-3.9.6\bin\mvn.cmd" (
+        set "MAVEN_FOUND=1"
+        set "MAVEN_HOME=C:\Program Files\apache-maven-3.9.6"
+        set "PATH=%PATH%;C:\Program Files\apache-maven-3.9.6\bin"
+        echo Found Maven in C:\Program Files\apache-maven-3.9.6
+    )
+
+    if exist "C:\apache-maven-3.9.6\bin\mvn.cmd" (
+        set "MAVEN_FOUND=1"
+        set "MAVEN_HOME=C:\apache-maven-3.9.6"
+        set "PATH=%PATH%;C:\apache-maven-3.9.6\bin"
+        echo Found Maven in C:\apache-maven-3.9.6
+    )
+
+    if %MAVEN_FOUND% equ 0 (
+        echo Maven is not installed or not found in PATH.
+        echo Please run option 1 first to install dependencies.
+        echo After installation, please close this window and run the batch file again.
+        echo.
+        pause
+        goto menu
+    )
+)
+
 :: Build the application
 echo Building application...
 echo Current directory:
 cd
+
+echo.
+echo Running Maven build...
 call mvn clean package
 if %errorlevel% neq 0 (
     echo Failed to build the application ^(error code: %errorlevel%^)
     echo Please check your internet connection and try again.
+    echo If the error persists, try running option 1 first to install dependencies.
     pause
     goto menu
 )
 
 :: Copy the built JAR to the correct location
+echo.
 echo Copying built JAR file...
 copy /Y "target\opencv-demo-1.0-SNAPSHOT.jar" "Face Recognition.jar"
 if %errorlevel% neq 0 (
@@ -281,6 +317,7 @@ if %errorlevel% neq 0 (
 
 echo.
 echo Application built successfully!
+echo.
 pause
 goto menu
 
