@@ -2,6 +2,29 @@
 title Face Recognition
 color 0A
 
+:menu
+cls
+echo Face Recognition Setup Menu
+echo =========================
+echo 1. Install/Update Dependencies
+echo 2. Build Application
+echo 3. Run Application
+echo 4. Exit
+echo.
+set /p choice="Enter your choice (1-4): "
+
+if "%choice%"=="1" goto install_deps
+if "%choice%"=="2" goto build_app
+if "%choice%"=="3" goto run_app
+if "%choice%"=="4" goto end
+goto menu
+
+:install_deps
+cls
+echo Installing Dependencies
+echo =====================
+echo.
+
 :: Change to script directory
 pushd "%~dp0"
 
@@ -11,19 +34,16 @@ if %errorlevel% neq 0 (
     echo Please run as administrator
     echo Right-click and select "Run as administrator"
     pause
-    exit /b 1
+    goto menu
 )
-
-echo Face Recognition Setup
-echo ====================
-echo.
 
 :: Check and install Java if needed
 echo Checking Java...
-java -version >nul 2>&1
+java -version
 if %errorlevel% neq 0 (
     echo Java not found. Installing Java 24...
     echo This may take a few minutes...
+    pause
     
     :: Create temp directory
     set "TEMP_DIR=%TEMP%\FaceRecognitionSetup"
@@ -35,9 +55,88 @@ if %errorlevel% neq 0 (
     
     :: Clean up
     rd /s /q "%TEMP_DIR%" 2>nul
+) else (
+    echo Java is installed.
+)
+
+:: Check and install Maven if needed
+echo.
+echo Checking Maven...
+echo Current PATH: %PATH%
+
+:: Try to find Maven in common locations
+set "MAVEN_FOUND=0"
+if exist "C:\Program Files\apache-maven-3.9.6\bin\mvn.cmd" (
+    set "MAVEN_FOUND=1"
+    set "MAVEN_HOME=C:\Program Files\apache-maven-3.9.6"
+    set "PATH=%PATH%;C:\Program Files\apache-maven-3.9.6\bin"
+)
+
+if exist "C:\apache-maven-3.9.6\bin\mvn.cmd" (
+    set "MAVEN_FOUND=1"
+    set "MAVEN_HOME=C:\apache-maven-3.9.6"
+    set "PATH=%PATH%;C:\apache-maven-3.9.6\bin"
+)
+
+where mvn 2>nul
+if %errorlevel% equ 0 (
+    set "MAVEN_FOUND=1"
+)
+
+if %MAVEN_FOUND% equ 0 (
+    echo Maven not found. Installing Maven...
+    echo This may take a few minutes...
+    
+    :: Create temp directory
+    set "TEMP_DIR=%TEMP%\FaceRecognitionSetup"
+    mkdir "%TEMP_DIR%" 2>nul
+    
+    :: Download and install Maven
+    echo Downloading Maven...
+    powershell -Command "& {[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri 'https://dlcdn.apache.org/maven/maven-3/3.9.6/binaries/apache-maven-3.9.6-bin.zip' -OutFile '%TEMP_DIR%\maven.zip'}"
+    if %errorlevel% neq 0 (
+        echo Failed to download Maven ^(error code: %errorlevel%^)
+        echo Please check your internet connection and try again.
+        pause
+        goto menu
+    )
+    
+    echo Installing Maven...
+    powershell -Command "& {Expand-Archive -Path '%TEMP_DIR%\maven.zip' -DestinationPath 'C:\Program Files' -Force}"
+    if %errorlevel% neq 0 (
+        echo Failed to extract Maven ^(error code: %errorlevel%^)
+        echo Please make sure you have enough disk space and try again.
+        pause
+        goto menu
+    )
+    
+    :: Set Maven environment variables
+    echo Setting up Maven environment...
+    echo Current PATH before setx: %PATH%
+    setx MAVEN_HOME "C:\Program Files\apache-maven-3.9.6" /M
+    setx PATH "%PATH%;C:\Program Files\apache-maven-3.9.6\bin" /M
+    set "PATH=%PATH%;C:\Program Files\apache-maven-3.9.6\bin"
+    echo Current PATH after setx: %PATH%
+    
+    :: Verify Maven installation
+    echo Verifying Maven installation...
+    echo Looking for mvn in:
+    where mvn
+    if %errorlevel% neq 0 (
+        echo Maven installation failed ^(error code: %errorlevel%^)
+        echo Please try installing Maven manually.
+        pause
+        goto menu
+    )
+    
+    :: Clean up
+    rd /s /q "%TEMP_DIR%" 2>nul
+) else (
+    echo Maven is installed.
 )
 
 :: Check and install JavaFX if needed
+echo.
 echo Checking JavaFX...
 if not exist "C:\Program Files\Java\javafx-sdk-24.0.2\lib\javafx.graphics.jar" (
     echo JavaFX not found. Installing JavaFX 24...
@@ -53,7 +152,58 @@ if not exist "C:\Program Files\Java\javafx-sdk-24.0.2\lib\javafx.graphics.jar" (
     
     :: Clean up
     rd /s /q "%TEMP_DIR%" 2>nul
+) else (
+    echo JavaFX is installed.
 )
+
+echo.
+echo All dependencies installed successfully!
+pause
+goto menu
+
+:build_app
+cls
+echo Building Application
+echo ==================
+echo.
+
+:: Change to script directory
+pushd "%~dp0"
+
+:: Build the application
+echo Building application...
+echo Current directory:
+cd
+call mvn clean package
+if %errorlevel% neq 0 (
+    echo Failed to build the application ^(error code: %errorlevel%^)
+    echo Please check your internet connection and try again.
+    pause
+    goto menu
+)
+
+:: Copy the built JAR to the correct location
+echo Copying built JAR file...
+copy /Y "target\opencv-demo-1.0-SNAPSHOT.jar" "Face Recognition.jar"
+if %errorlevel% neq 0 (
+    echo Failed to copy JAR file ^(error code: %errorlevel%^)
+    pause
+    goto menu
+)
+
+echo.
+echo Application built successfully!
+pause
+goto menu
+
+:run_app
+cls
+echo Running Application
+echo =================
+echo.
+
+:: Change to script directory
+pushd "%~dp0"
 
 :: Extract OpenCV if needed
 echo Setting up OpenCV...
@@ -69,7 +219,6 @@ set "PATH=%CD%\opencv_dlls;%PATH%"
 set "JAVA_OPTS=-Dglass.win.uiScale=100%% -Dprism.order=sw,d3d -Dprism.maxvram=512m -Djavafx.platform=win"
 
 :: Start application
-echo.
 echo Starting Face Recognition...
 echo The application will continue running after this window closes.
 echo.
@@ -96,12 +245,16 @@ if %errorlevel% neq 0 (
     echo Please try running the script again as administrator.
     echo.
     pause
+    goto menu
 ) else (
-    :: Success - close this window after 3 seconds
     echo Application started successfully!
-    echo This window will close in 3 seconds...
+    echo Returning to menu in 3 seconds...
     timeout /t 3 >nul
 )
 
-:: Restore original directory
-popd 
+goto menu
+
+:end
+echo Thank you for using Face Recognition!
+pause
+exit /b 0 
