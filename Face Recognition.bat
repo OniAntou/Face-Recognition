@@ -309,11 +309,33 @@ echo ==================
 echo.
 
 :: Change to script directory
+echo Current directory before pushd: %CD%
 pushd "%~dp0"
-echo Current directory after pushd:
-cd
+if %errorlevel% neq 0 (
+    echo Failed to change to script directory.
+    echo Error level: %errorlevel%
+    echo Script path: %~dp0
+    pause
+    goto menu
+)
+echo Current directory after pushd: %CD%
 echo.
 pause
+
+:: Check if we're in the correct project directory
+if not exist "pom.xml" (
+    echo ERROR: pom.xml not found in current directory!
+    echo This means we're not in the correct project directory.
+    echo Expected: %~dp0
+    echo Current: %CD%
+    echo.
+    echo Please make sure the batch file is in the same directory as pom.xml
+    echo.
+    pause
+    goto menu
+)
+echo Project directory confirmed (pom.xml found).
+echo.
 
 :: Check if Maven is in PATH
 echo Checking Maven configuration...
@@ -394,9 +416,26 @@ if %BUILD_RESULT% neq 0 (
 :: Copy the built JAR to the correct location
 echo.
 echo Copying built JAR file...
+
+:: Check if target directory exists
+if not exist "target" (
+    echo ERROR: target directory not found!
+    echo This means the Maven build did not complete successfully.
+    echo Please check the build output above for errors.
+    pause
+    goto menu
+)
+
+:: Check if JAR file exists
 if not exist "target\opencv-demo-1.0-SNAPSHOT.jar" (
     echo Built JAR file not found in target directory.
     echo Build may have failed.
+    echo.
+    echo Checking what files exist in target directory:
+    dir target\*.jar 2>nul
+    if %errorlevel% neq 0 (
+        echo No JAR files found in target directory.
+    )
     pause
     goto menu
 )
