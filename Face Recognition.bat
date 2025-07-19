@@ -364,6 +364,19 @@ if not exist "target\opencv-demo-1.0-SNAPSHOT.jar" (
     goto menu
 )
 
+:: Check if the JAR is a Git LFS pointer
+findstr /C:"version https://git-lfs.github.com/spec/v1" "target\opencv-demo-1.0-SNAPSHOT.jar" >nul
+if %errorlevel% equ 0 (
+    echo Warning: JAR file appears to be a Git LFS pointer.
+    echo This means the actual JAR file was not downloaded.
+    echo Please ensure you have Git LFS installed and run: git lfs pull
+    echo.
+    echo For now, we'll try to build the JAR file directly...
+    echo.
+    pause
+    goto build_app
+)
+
 copy /Y "target\opencv-demo-1.0-SNAPSHOT.jar" "Face Recognition.jar"
 if %errorlevel% neq 0 (
     echo Failed to copy JAR file.
@@ -387,13 +400,46 @@ echo.
 :: Change to script directory
 pushd "%~dp0"
 
+:: Check if JAR file exists and is valid
+if not exist "FaceRecognition.jar" (
+    if not exist "Face Recognition.jar" (
+        echo JAR file not found!
+        echo Please run option 2 first to build the application.
+        echo.
+        pause
+        goto menu
+    ) else (
+        set "JAR_FILE=Face Recognition.jar"
+    )
+) else (
+    set "JAR_FILE=FaceRecognition.jar"
+)
+
+:: Check if JAR is a Git LFS pointer
+findstr /C:"version https://git-lfs.github.com/spec/v1" "%JAR_FILE%" >nul
+if %errorlevel% equ 0 (
+    echo JAR file appears to be a Git LFS pointer!
+    echo Please run option 2 first to build the application properly.
+    echo.
+    pause
+    goto menu
+)
+
 :: Extract OpenCV if needed
 echo Setting up OpenCV...
 if not exist "opencv_dlls" mkdir opencv_dlls >nul 2>&1
 if not exist "opencv_dlls\opencv_java490.dll" (
-    jar xf "Face Recognition.jar" nu/pattern/opencv/windows/x86_64/ >nul 2>&1
-    move "nu\pattern\opencv\windows\x86_64\*.dll" "opencv_dlls\" >nul 2>&1
-    rd /s /q "nu" >nul 2>&1
+    echo Extracting OpenCV DLLs from JAR file...
+    jar xf "%JAR_FILE%" nu/pattern/opencv/windows/x86_64/ >nul 2>&1
+    if exist "nu\pattern\opencv\windows\x86_64\*.dll" (
+        move "nu\pattern\opencv\windows\x86_64\*.dll" "opencv_dlls\" >nul 2>&1
+        rd /s /q "nu" >nul 2>&1
+        echo OpenCV DLLs extracted successfully.
+    ) else (
+        echo Warning: Could not extract OpenCV DLLs from JAR.
+        echo The application may not work properly.
+        pause
+    )
 )
 
 :: Set environment
@@ -405,6 +451,15 @@ echo Starting Face Recognition...
 echo The application will continue running after this window closes.
 echo.
 
+:: Check if JavaFX is available
+if not exist "C:\Program Files\Java\javafx-sdk-24.0.2\lib\javafx.graphics.jar" (
+    echo JavaFX runtime components are missing!
+    echo Please run option 1 first to install JavaFX.
+    echo.
+    pause
+    goto menu
+)
+
 :: Launch application in background
 start /b "" javaw %JAVA_OPTS% ^
     --enable-native-access=javafx.graphics,ALL-UNNAMED ^
@@ -414,7 +469,7 @@ start /b "" javaw %JAVA_OPTS% ^
     -Dfile.encoding=UTF-8 ^
     --module-path "C:\Program Files\Java\javafx-sdk-24.0.2\lib" ^
     --add-modules javafx.controls,javafx.fxml,javafx.graphics ^
-    -cp "Face Recognition.jar" com.example.facedetection.MainApp
+    -cp "%JAR_FILE%" com.example.facedetection.MainApp
 
 :: Wait a moment to check if the application started
 timeout /t 2 >nul
