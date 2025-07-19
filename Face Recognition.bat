@@ -172,23 +172,73 @@ if %MAVEN_FOUND% equ 0 (
     :: Download Maven
     echo Downloading Maven...
     echo This may take several minutes depending on your internet connection...
-    echo Download URL: https://dlcdn.apache.org/maven/maven-3/3.9.6/binaries/apache-maven-3.9.6-bin.zip
+    echo.
+    
+    :: Try multiple download URLs
+    set "DOWNLOAD_SUCCESS=0"
+    
+    :: Try primary URL (Apache Archive - working)
+    echo Trying primary download URL...
+    echo Download URL: https://archive.apache.org/dist/maven/maven-3/3.9.6/binaries/apache-maven-3.9.6-bin.zip
     echo Download location: %TEMP_DIR%\maven.zip
     echo.
-    powershell -Command "& {[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri 'https://dlcdn.apache.org/maven/maven-3/3.9.6/binaries/apache-maven-3.9.6-bin.zip' -OutFile '%TEMP_DIR%\maven.zip'}"
+    powershell -Command "& {[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri 'https://archive.apache.org/dist/maven/maven-3/3.9.6/binaries/apache-maven-3.9.6-bin.zip' -OutFile '%TEMP_DIR%\maven.zip' -TimeoutSec 300}"
     set DOWNLOAD_RESULT=%errorlevel%
     echo Download completed with exit code: %DOWNLOAD_RESULT%
-    if %DOWNLOAD_RESULT% neq 0 (
-        echo Failed to download Maven.
-        echo Error level: %DOWNLOAD_RESULT%
-        echo Please check your internet connection and try again.
+    
+    if %DOWNLOAD_RESULT% equ 0 (
+        :: Check if file was actually downloaded and has reasonable size
+        for %%A in ("%TEMP_DIR%\maven.zip") do set FILE_SIZE=%%~zA
+        if %FILE_SIZE% GTR 1000000 (
+            set "DOWNLOAD_SUCCESS=1"
+            echo Maven downloaded successfully (%FILE_SIZE% bytes).
+        ) else (
+            echo Downloaded file is too small (%FILE_SIZE% bytes), trying alternative URL...
+        )
+    ) else (
+        echo Primary download failed, trying alternative URL...
+    )
+    
+    :: Try alternative URL if primary failed (Apache CDN - may not work)
+    if %DOWNLOAD_SUCCESS% equ 0 (
         echo.
-        echo You can also try downloading Maven manually from:
-        echo https://maven.apache.org/download.cgi
+        echo Trying alternative download URL...
+        echo Download URL: https://dlcdn.apache.org/maven/maven-3/3.9.6/binaries/apache-maven-3.9.6-bin.zip
+        echo.
+        powershell -Command "& {[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri 'https://dlcdn.apache.org/maven/maven-3/3.9.6/binaries/apache-maven-3.9.6-bin.zip' -OutFile '%TEMP_DIR%\maven.zip' -TimeoutSec 300}"
+        set DOWNLOAD_RESULT=%errorlevel%
+        echo Alternative download completed with exit code: %DOWNLOAD_RESULT%
+        
+        if %DOWNLOAD_RESULT% equ 0 (
+            for %%A in ("%TEMP_DIR%\maven.zip") do set FILE_SIZE=%%~zA
+            if %FILE_SIZE% GTR 1000000 (
+                set "DOWNLOAD_SUCCESS=1"
+                echo Maven downloaded successfully from alternative URL (%FILE_SIZE% bytes).
+            )
+        )
+    )
+    
+    :: Check final result
+    if %DOWNLOAD_SUCCESS% equ 0 (
+        echo.
+        echo Failed to download Maven from both URLs.
+        echo Error level: %DOWNLOAD_RESULT%
+        echo File size: %FILE_SIZE% bytes
+        echo.
+        echo Possible solutions:
+        echo 1. Check your internet connection
+        echo 2. Try running as administrator
+        echo 3. Disable antivirus/firewall temporarily
+        echo 4. Download Maven manually from: https://maven.apache.org/download.cgi
+        echo.
+        echo Manual installation steps:
+        echo 1. Download apache-maven-3.9.6-bin.zip
+        echo 2. Extract to C:\Program Files\apache-maven-3.9.6
+        echo 3. Add C:\Program Files\apache-maven-3.9.6\bin to PATH
+        echo.
         pause
         goto menu
     )
-    echo Maven downloaded successfully.
     
     echo Installing Maven...
     echo Extracting to: C:\Program Files\apache-maven-3.9.6
@@ -265,10 +315,33 @@ if not exist "C:\Program Files\Java\javafx-sdk-24.0.2\lib\javafx.graphics.jar" (
     :: Download JavaFX
     echo Downloading JavaFX...
     echo This may take several minutes depending on your internet connection...
-    powershell -Command "& {[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri 'https://download2.gluonhq.com/openjfx/24.0.2/openjfx-24.0.2_windows-x64_bin-sdk.zip' -OutFile '%TEMP_DIR%\javafx.zip'}"
-    if %errorlevel% neq 0 (
+    echo Download URL: https://download2.gluonhq.com/openjfx/24.0.2/openjfx-24.0.2_windows-x64_bin-sdk.zip
+    echo.
+    powershell -Command "& {[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri 'https://download2.gluonhq.com/openjfx/24.0.2/openjfx-24.0.2_windows-x64_bin-sdk.zip' -OutFile '%TEMP_DIR%\javafx.zip' -TimeoutSec 300}"
+    set JAVAFX_DOWNLOAD_RESULT=%errorlevel%
+    echo JavaFX download completed with exit code: %JAVAFX_DOWNLOAD_RESULT%
+    
+    if %JAVAFX_DOWNLOAD_RESULT% equ 0 (
+        :: Check if file was actually downloaded and has reasonable size
+        for %%A in ("%TEMP_DIR%\javafx.zip") do set JAVAFX_FILE_SIZE=%%~zA
+        if %JAVAFX_FILE_SIZE% GTR 10000000 (
+            echo JavaFX downloaded successfully (%JAVAFX_FILE_SIZE% bytes).
+        ) else (
+            echo Downloaded JavaFX file is too small (%JAVAFX_FILE_SIZE% bytes).
+            echo Please check your internet connection and try again.
+            echo.
+            echo You can also download JavaFX manually from:
+            echo https://openjfx.io/
+            pause
+            goto menu
+        )
+    ) else (
         echo Failed to download JavaFX.
+        echo Error level: %JAVAFX_DOWNLOAD_RESULT%
         echo Please check your internet connection and try again.
+        echo.
+        echo You can also download JavaFX manually from:
+        echo https://openjfx.io/
         pause
         goto menu
     )
