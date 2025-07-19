@@ -31,11 +31,20 @@ pushd "%~dp0"
 :: Check admin rights
 net session >nul 2>&1
 if %errorlevel% neq 0 (
-    echo Please run as administrator
-    echo Right-click and select "Run as administrator"
+    echo ERROR: This script requires administrator privileges!
+    echo.
+    echo To fix this:
+    echo 1. Right-click on "Face Recognition.bat"
+    echo 2. Select "Run as administrator"
+    echo 3. Click "Yes" when prompted
+    echo.
+    echo This is required to install Maven and JavaFX to C:\Program Files
+    echo.
     pause
     goto menu
 )
+echo Administrator privileges confirmed.
+echo.
 
 :: Check and install Java if needed
 echo Checking Java...
@@ -134,7 +143,8 @@ if %errorlevel% equ 0 (
 
 echo Maven found status: %MAVEN_FOUND%
 echo.
-pause
+echo Press any key to continue...
+pause >nul
 
 if %MAVEN_FOUND% equ 0 (
     echo Maven not found. Installing Maven...
@@ -143,30 +153,57 @@ if %MAVEN_FOUND% equ 0 (
     echo Press any key to start Maven installation...
     pause >nul
     
+    echo Starting Maven installation process...
+    echo.
+    
     :: Create temp directory
     echo Creating temporary directory...
     set "TEMP_DIR=%TEMP%\FaceRecognitionSetup"
+    echo Temp directory: %TEMP_DIR%
     mkdir "%TEMP_DIR%" 2>nul
+    if %errorlevel% neq 0 (
+        echo Failed to create temp directory.
+        echo Error level: %errorlevel%
+        pause
+        goto menu
+    )
+    echo Temp directory created successfully.
     
     :: Download Maven
     echo Downloading Maven...
     echo This may take several minutes depending on your internet connection...
+    echo Download URL: https://dlcdn.apache.org/maven/maven-3/3.9.6/binaries/apache-maven-3.9.6-bin.zip
+    echo Download location: %TEMP_DIR%\maven.zip
+    echo.
     powershell -Command "& {[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri 'https://dlcdn.apache.org/maven/maven-3/3.9.6/binaries/apache-maven-3.9.6-bin.zip' -OutFile '%TEMP_DIR%\maven.zip'}"
-    if %errorlevel% neq 0 (
+    set DOWNLOAD_RESULT=%errorlevel%
+    echo Download completed with exit code: %DOWNLOAD_RESULT%
+    if %DOWNLOAD_RESULT% neq 0 (
         echo Failed to download Maven.
+        echo Error level: %DOWNLOAD_RESULT%
         echo Please check your internet connection and try again.
+        echo.
+        echo You can also try downloading Maven manually from:
+        echo https://maven.apache.org/download.cgi
         pause
         goto menu
     )
+    echo Maven downloaded successfully.
     
     echo Installing Maven...
+    echo Extracting to: C:\Program Files\apache-maven-3.9.6
     powershell -Command "& {Expand-Archive -Path '%TEMP_DIR%\maven.zip' -DestinationPath 'C:\Program Files' -Force}"
-    if %errorlevel% neq 0 (
+    set EXTRACT_RESULT=%errorlevel%
+    echo Extraction completed with exit code: %EXTRACT_RESULT%
+    if %EXTRACT_RESULT% neq 0 (
         echo Failed to extract Maven.
+        echo Error level: %EXTRACT_RESULT%
         echo Please make sure you have enough disk space and try again.
+        echo You may need to run this script as administrator.
         pause
         goto menu
     )
+    echo Maven extracted successfully.
     
     :: Set Maven environment variables
     echo Setting up Maven environment...
