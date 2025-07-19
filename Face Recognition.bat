@@ -402,6 +402,7 @@ if not exist "target\opencv-demo-1.0-SNAPSHOT.jar" (
 )
 
 :: Check if the JAR is a Git LFS pointer
+echo Checking if JAR file is a Git LFS pointer...
 findstr /C:"version https://git-lfs.github.com/spec/v1" "target\opencv-demo-1.0-SNAPSHOT.jar" >nul
 if %errorlevel% equ 0 (
     echo Warning: JAR file appears to be a Git LFS pointer.
@@ -412,14 +413,36 @@ if %errorlevel% equ 0 (
     echo.
     pause
     goto build_app
+) else (
+    echo JAR file is valid (not a Git LFS pointer).
 )
 
+:: Check JAR file size to ensure it's not a tiny pointer file
+for %%A in ("target\opencv-demo-1.0-SNAPSHOT.jar") do set JAR_SIZE=%%~zA
+echo JAR file size: %JAR_SIZE% bytes
+if %JAR_SIZE% LSS 1000000 (
+    echo Warning: JAR file is very small (%JAR_SIZE% bytes).
+    echo This might indicate a Git LFS pointer or incomplete build.
+    echo Expected size should be around 100MB+.
+    echo.
+    pause
+    goto build_app
+) else (
+    echo JAR file size is acceptable.
+)
+
+echo Copying JAR file to Face Recognition.jar...
 copy /Y "target\opencv-demo-1.0-SNAPSHOT.jar" "Face Recognition.jar"
-if %errorlevel% neq 0 (
+set COPY_RESULT=%errorlevel%
+if %COPY_RESULT% neq 0 (
     echo Failed to copy JAR file.
+    echo Error level: %COPY_RESULT%
+    echo Source: target\opencv-demo-1.0-SNAPSHOT.jar
+    echo Destination: Face Recognition.jar
     pause
     goto menu
 )
+echo JAR file copied successfully.
 
 echo.
 echo Application built successfully!
