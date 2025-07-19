@@ -109,22 +109,32 @@ pause
 
 :: Try to find Maven in common locations
 set "MAVEN_FOUND=0"
+echo Checking for Maven in common locations...
+
 if exist "C:\Program Files\apache-maven-3.9.6\bin\mvn.cmd" (
     set "MAVEN_FOUND=1"
     set "MAVEN_HOME=C:\Program Files\apache-maven-3.9.6"
     set "PATH=%PATH%;C:\Program Files\apache-maven-3.9.6\bin"
+    echo Found Maven in C:\Program Files\apache-maven-3.9.6
 )
 
 if exist "C:\apache-maven-3.9.6\bin\mvn.cmd" (
     set "MAVEN_FOUND=1"
     set "MAVEN_HOME=C:\apache-maven-3.9.6"
     set "PATH=%PATH%;C:\apache-maven-3.9.6\bin"
+    echo Found Maven in C:\apache-maven-3.9.6
 )
 
+echo Testing where mvn command...
 where mvn 2>nul
 if %errorlevel% equ 0 (
     set "MAVEN_FOUND=1"
+    echo Maven found in PATH
 )
+
+echo Maven found status: %MAVEN_FOUND%
+echo.
+pause
 
 if %MAVEN_FOUND% equ 0 (
     echo Maven not found. Installing Maven...
@@ -189,7 +199,13 @@ if %MAVEN_FOUND% equ 0 (
     pause
 ) else (
     echo Maven is already installed.
+    echo Testing Maven version...
     call mvn -version
+    if %errorlevel% neq 0 (
+        echo Warning: Maven found but version check failed.
+        echo This might cause issues with building.
+        pause
+    )
     echo.
     pause
 )
