@@ -257,11 +257,18 @@ echo.
 
 :: Change to script directory
 pushd "%~dp0"
+echo Current directory after pushd:
+cd
+echo.
+pause
 
 :: Check if Maven is in PATH
 echo Checking Maven configuration...
-where mvn >nul 2>&1
+echo Current PATH: %PATH%
+echo.
+where mvn
 if %errorlevel% neq 0 (
+    echo Maven not found in PATH, searching for installation...
     :: Try to find Maven in common locations
     set "MAVEN_FOUND=0"
     
@@ -287,18 +294,44 @@ if %errorlevel% neq 0 (
         pause
         goto menu
     )
+    
+    echo Updated PATH: %PATH%
+    echo.
+    echo Testing Maven again...
+    where mvn
+    if %errorlevel% neq 0 (
+        echo Still cannot find Maven after updating PATH.
+        echo Please try running option 1 again to reinstall Maven.
+        pause
+        goto menu
+    )
 )
 
 :: Build the application
 echo Building application...
 echo Current directory:
 cd
+echo.
+
+echo Testing Maven version...
+call mvn -version
+if %errorlevel% neq 0 (
+    echo Failed to run Maven version check.
+    echo Please ensure Maven is properly installed.
+    pause
+    goto menu
+)
 
 echo.
 echo Running Maven build...
+echo This may take several minutes...
+echo.
 call mvn clean package
-if %errorlevel% neq 0 (
-    echo Failed to build the application ^(error code: %errorlevel%^)
+set BUILD_RESULT=%errorlevel%
+echo.
+echo Maven build completed with exit code: %BUILD_RESULT%
+if %BUILD_RESULT% neq 0 (
+    echo Failed to build the application.
     echo Please check your internet connection and try again.
     echo If the error persists, try running option 1 first to install dependencies.
     pause
@@ -308,15 +341,23 @@ if %errorlevel% neq 0 (
 :: Copy the built JAR to the correct location
 echo.
 echo Copying built JAR file...
+if not exist "target\opencv-demo-1.0-SNAPSHOT.jar" (
+    echo Built JAR file not found in target directory.
+    echo Build may have failed.
+    pause
+    goto menu
+)
+
 copy /Y "target\opencv-demo-1.0-SNAPSHOT.jar" "Face Recognition.jar"
 if %errorlevel% neq 0 (
-    echo Failed to copy JAR file ^(error code: %errorlevel%^)
+    echo Failed to copy JAR file.
     pause
     goto menu
 )
 
 echo.
 echo Application built successfully!
+echo JAR file copied to: Face Recognition.jar
 echo.
 pause
 goto menu
