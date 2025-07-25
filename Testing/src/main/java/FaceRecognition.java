@@ -13,8 +13,8 @@ public class FaceRecognition {
 
         // 2. Build paths relative to project root
         String cascadePath = "data" + File.separator + "haarcascade_frontalface_default.xml";
-        String inPath      = "F:\\Image_Test\\input.jpg";
-        String outPath     = "F:\\Image_Output\\result.jpg";
+        String inPath      = "Image_Test" + File.separator + "input.jpg";
+        String outPath     = "Image_Output" + File.separator + "result.jpg";
 
         // 3. Load cascade classifier
         CascadeClassifier faceDetector = new CascadeClassifier();
