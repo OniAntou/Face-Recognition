@@ -113,7 +113,7 @@ Face-Recognition/
 
 ## 📄 License
 
-See [LICENSE.txt](LICENSE.txt) for details.
+This project is licensed under the **MIT License** - see the [LICENSE.txt](LICENSE.txt) file for details.
 
 ---
 
@@ -234,4 +234,4 @@ Face-Recognition/
 
 ## 📄 Giấy Phép
 
-Xem [LICENSE.txt](LICENSE.txt) để biết chi tiết.
+Dự án này được cấp phép theo **Giấy phép MIT** - xem tệp [LICENSE.txt](LICENSE.txt) để biết chi tiết.
