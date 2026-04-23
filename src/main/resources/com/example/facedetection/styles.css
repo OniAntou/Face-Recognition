@@ -1,0 +1,162 @@
+/* ============================================================
+   Face Recognition App – Modern Minimalist Theme
+   ============================================================ */
+
+/* ── Root Variables ────────────────────────────────────────── */
+.root {
+    -fx-font-family: "Segoe UI", "SF Pro Display", system;
+    -color-brand:         #6C63FF;
+    -color-brand-hover:   #5A52E0;
+    -color-brand-subtle:  rgba(108, 99, 255, 0.08);
+    -color-surface:       #1A1A2E;
+    -color-surface-card:  #16213E;
+    -color-surface-hover: #1C2B4A;
+    -color-text-primary:  #E8E8F0;
+    -color-text-secondary:#8B8BA3;
+    -color-text-muted:    #5C5C78;
+    -color-border-card:   rgba(108, 99, 255, 0.12);
+    -color-border-subtle: rgba(255, 255, 255, 0.06);
+}
+
+/* ── Header Bar ────────────────────────────────────────────── */
+#headerBar {
+    -fx-background-color: -color-surface;
+    -fx-padding: 16 28 16 28;
+    -fx-border-color: -color-border-subtle;
+    -fx-border-width: 0 0 1 0;
+}
+
+#appTitle {
+    -fx-font-size: 20px;
+    -fx-font-weight: 700;
+    -fx-text-fill: -color-text-primary;
+}
+
+#appSubtitle {
+    -fx-font-size: 11px;
+    -fx-font-weight: 500;
+    -fx-text-fill: -color-text-muted;
+    -fx-padding: 2 0 0 0;
+}
+
+/* ── Action Buttons ────────────────────────────────────────── */
+.btn-primary {
+    -fx-background-color: -color-brand;
+    -fx-text-fill: white;
+    -fx-font-size: 13px;
+    -fx-font-weight: 600;
+    -fx-padding: 10 22 10 22;
+    -fx-background-radius: 8;
+    -fx-border-radius: 8;
+    -fx-cursor: hand;
+    -fx-effect: dropshadow(gaussian, rgba(108, 99, 255, 0.25), 8, 0, 0, 2);
+}
+
+.btn-primary:hover {
+    -fx-background-color: -color-brand-hover;
+    -fx-effect: dropshadow(gaussian, rgba(108, 99, 255, 0.4), 12, 0, 0, 4);
+}
+
+.btn-secondary {
+    -fx-background-color: transparent;
+    -fx-text-fill: -color-text-primary;
+    -fx-font-size: 13px;
+    -fx-font-weight: 600;
+    -fx-padding: 10 22 10 22;
+    -fx-background-radius: 8;
+    -fx-border-radius: 8;
+    -fx-border-color: rgba(255, 255, 255, 0.12);
+    -fx-border-width: 1;
+    -fx-cursor: hand;
+}
+
+.btn-secondary:hover {
+    -fx-background-color: rgba(255, 255, 255, 0.06);
+    -fx-border-color: rgba(255, 255, 255, 0.2);
+}
+
+.btn-danger {
+    -fx-background-color: #E05252;
+    -fx-text-fill: white;
+    -fx-font-size: 13px;
+    -fx-font-weight: 600;
+    -fx-padding: 10 22 10 22;
+    -fx-background-radius: 8;
+    -fx-border-radius: 8;
+    -fx-cursor: hand;
+    -fx-effect: dropshadow(gaussian, rgba(224, 82, 82, 0.25), 8, 0, 0, 2);
+}
+
+.btn-danger:hover {
+    -fx-background-color: #CC4545;
+    -fx-effect: dropshadow(gaussian, rgba(224, 82, 82, 0.4), 12, 0, 0, 4);
+}
+
+/* ── Content Area ──────────────────────────────────────────── */
+#contentArea {
+    -fx-background-color: #0F0F23;
+}
+
+/* ── Card Panels ───────────────────────────────────────────── */
+.view-card {
+    -fx-background-color: -color-surface-card;
+    -fx-background-radius: 14;
+    -fx-border-color: -color-border-card;
+    -fx-border-radius: 14;
+    -fx-border-width: 1;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.35), 16, 0, 0, 4);
+}
+
+.card-header {
+    -fx-font-size: 12px;
+    -fx-font-weight: 600;
+    -fx-text-fill: -color-text-secondary;
+}
+
+.card-separator {
+    -fx-background-color: transparent;
+    -fx-border-color: -color-border-subtle;
+    -fx-border-width: 0 0 1 0;
+}
+
+/* ── Image Viewport ────────────────────────────────────────── */
+.image-viewport {
+    -fx-background-color: #0D0D1A;
+    -fx-background-radius: 10;
+}
+
+/* ── Status / Footer Bar ───────────────────────────────────── */
+#footerBar {
+    -fx-background-color: -color-surface;
+    -fx-padding: 10 28 10 28;
+    -fx-border-color: -color-border-subtle;
+    -fx-border-width: 1 0 0 0;
+}
+
+#statusLabel {
+    -fx-font-size: 12px;
+    -fx-text-fill: -color-text-secondary;
+}
+
+#engineLabel {
+    -fx-font-size: 11px;
+    -fx-font-style: italic;
+    -fx-text-fill: -color-text-muted;
+}
+
+/* ── Dot Indicator (status dot) ────────────────────────────── */
+.status-dot {
+    -fx-background-color: #4ADE80;
+    -fx-background-radius: 50;
+    -fx-min-width: 6;
+    -fx-min-height: 6;
+    -fx-max-width: 6;
+    -fx-max-height: 6;
+}
+
+/* ── Scrollbar Styling (subtle) ────────────────────────────── */
+.scroll-bar:vertical .thumb,
+.scroll-bar:horizontal .thumb {
+    -fx-background-color: rgba(255, 255, 255, 0.08);
+    -fx-background-radius: 10;
+}

@@ -1,0 +1,17 @@
+Face Detection AI - End User License Agreement
+
+1. LICENSE GRANT
+Oni_Antou grants you a personal, non-transferable, non-exclusive license to use the Face Detection AI software for personal or commercial purposes.
+
+2. RESTRICTIONS
+You may not:
+- Modify, translate, or create derivative works of the Software.
+- Reverse engineer, decompile, or disassemble the Software.
+
+3. DISCLAIMER OF WARRANTY
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.
+
+4. LIMITATION OF LIABILITY
+IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY DAMAGES ARISING FROM THE USE OF THIS SOFTWARE.
+
+Copyright (c) 2024 Face Detection AI. All rights reserved.

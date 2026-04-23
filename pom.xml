@@ -1,0 +1,186 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>com.example</groupId>
+    <artifactId>opencv-demo</artifactId>
+    <version>1.0-SNAPSHOT</version>
+
+    <properties>
+        <opencv.version>4.9.0-0</opencv.version>
+        <javafx.version>17.0.2</javafx.version>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.openpnp</groupId>
+            <artifactId>opencv</artifactId>
+            <version>${opencv.version}</version>
+        </dependency>
+        
+        <!-- JavaFX Dependencies -->
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-controls</artifactId>
+            <version>${javafx.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-fxml</artifactId>
+            <version>${javafx.version}</version>
+        </dependency>
+
+        <!-- Logging -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>2.0.12</version>
+        </dependency>
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>1.5.3</version>
+        </dependency>
+
+        <!-- Modern UI Theme -->
+        <dependency>
+            <groupId>io.github.mkpaz</groupId>
+            <artifactId>atlantafx-base</artifactId>
+            <version>2.0.1</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.13.0</version>
+                <configuration>
+                    <source>17</source>
+                    <target>17</target>
+                    <!-- Enable all recommended optimizations -->
+                    <optimize>true</optimize>
+                    <compilerArgs>
+                        <arg>-Xlint:all</arg>
+                    </compilerArgs>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.openjfx</groupId>
+                <artifactId>javafx-maven-plugin</artifactId>
+                <version>0.0.8</version>
+                <configuration>
+                    <mainClass>com.example.facedetection.MainApp</mainClass>
+                    <jpackageOptions>
+                        <option>--type</option>
+                        <option>exe</option>
+                        <option>--name</option>
+                        <option>FaceRecognition</option>
+                        <option>--vendor</option>
+                        <option>Face Recognition</option>
+                        <option>--description</option>
+                        <option>Real-time Face Recognition &amp; Analysis</option>
+                        <option>--license-file</option>
+                        <option>LICENSE.txt</option>
+                        <option>--win-dir-chooser</option>
+                        <option>--win-shortcut</option>
+                        <option>--win-menu</option>
+                        <option>--win-menu-group</option>
+                        <option>FaceRecognition</option>
+                        <option>--copyright</option>
+                        <option>2024 Face Recognition</option>
+                        <!-- JVM optimization flags for the packaged application -->
+                        <option>--java-options</option>
+                        <option>-XX:+UseG1GC -XX:MaxGCPauseMillis=10 -XX:+UseStringDeduplication</option>
+                    </jpackageOptions>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.5.2</version>
+                <configuration>
+                    <createDependencyReducedPom>false</createDependencyReducedPom>
+                    <minimizeJar>true</minimizeJar>
+                    <filters>
+                        <!-- OpenCV: keep everything EXCEPT non-Windows native libs -->
+                        <filter>
+                            <artifact>org.openpnp:opencv</artifact>
+                            <includes>
+                                <include>**</include>
+                            </includes>
+                            <excludes>
+                                <!-- Remove Linux native libs (all architectures) -->
+                                <exclude>nu/pattern/opencv/linux/**</exclude>
+                                <!-- Remove macOS native libs (all architectures) -->
+                                <exclude>nu/pattern/opencv/osx/**</exclude>
+                                <!-- Remove Windows 32-bit (only keep x86_64) -->
+                                <exclude>nu/pattern/opencv/windows/x86_32/**</exclude>
+                            </excludes>
+                        </filter>
+                        <!-- Keep all JavaFX resources -->
+                        <filter>
+                            <artifact>org.openjfx:*</artifact>
+                            <includes>
+                                <include>**</include>
+                            </includes>
+                        </filter>
+                        <!-- Keep AtlantaFX theme resources -->
+                        <filter>
+                            <artifact>io.github.mkpaz:*</artifact>
+                            <includes>
+                                <include>**</include>
+                            </includes>
+                        </filter>
+                        <!-- Strip unnecessary metadata from all JARs -->
+                        <filter>
+                            <artifact>*:*</artifact>
+                            <excludes>
+                                <exclude>META-INF/*.SF</exclude>
+                                <exclude>META-INF/*.DSA</exclude>
+                                <exclude>META-INF/*.RSA</exclude>
+                                <exclude>META-INF/NOTICE*</exclude>
+                                <exclude>META-INF/LICENSE*</exclude>
+                                <exclude>META-INF/DEPENDENCIES</exclude>
+                                <exclude>META-INF/maven/**</exclude>
+                            </excludes>
+                        </filter>
+                    </filters>
+                </configuration>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <transformers>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <mainClass>com.example.facedetection.Launcher</mainClass>
+                                </transformer>
+                            </transformers>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <!-- maven-jar-plugin: optimize manifest -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.3.0</version>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <mainClass>com.example.facedetection.Launcher</mainClass>
+                            <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
+                        </manifest>
+                    </archive>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>
