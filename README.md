@@ -1,237 +1,184 @@
-# Face Recognition & Gender Classification
+# Face Recognition & Analysis (Professional Edition)
 
-A professional **Face Recognition** and **Gender Classification** desktop application built with **Java 17**, **OpenCV DNN**, and **JavaFX**.
+A high-performance **Face Recognition**, **Gender Classification**, and **Real-time Analysis** desktop application built with **Java 25**, **OpenCV**, and **JavaFX**.
 
-Detects faces in real-time using the **SSD ResNet-10** deep learning model and predicts gender with the **Levi-Hassner CaffeNet** model — all wrapped in a modern Dark Mode UI.
+This version features a robust hybrid AI engine utilizing **YOLOv8-face** (via ONNX) for ultra-fast detection and **SSD ResNet-10** as a fallback, with integrated **Levi-Hassner** gender classification.
 
 ---
 
-## ✨ Features
+## ✨ Key Features
 
-- **AI Face Detection** — SSD ResNet-10 model for high-accuracy face detection
-- **Gender Classification** — Levi-Hassner model with confidence display (e.g. "Male 92%")
-- **Real-time Camera** — Live webcam detection at ~30 FPS with frame-skip optimization
-- **Image Upload** — Supports PNG, JPG, JPEG, GIF, BMP, WebP formats
-- **Premium Dark UI** — Modern interface powered by AtlantaFX theme
-- **Responsive Layout** — Image panels auto-resize to fill available window space
-- **Windows Installer** — One-click setup via Inno Setup, no Java installation required for end users
+- **Hybrid AI Detection** — Support for **YOLOv8-face** (ONNX) and **SSD ResNet-10** (Caffe)
+- **Gender Classification** — High-accuracy Levi-Hassner model with confidence scoring
+- **Silent Updates** — In-app update system that automatically detects and installs newer versions from GitHub
+- **Hardware Acceleration** — Automatic OpenCL/GPU acceleration for DNN inference
+- **Premium Dark UI** — Modern, professional interface powered by the **AtlantaFX** theme
+- **Real-time Camera** — Optimized 30+ FPS stream with frame-skip protection and zero-latency buffering
+- **Windows Installer** — One-click professional setup bundling its own JRE and AI models
 
 ## 🛠 Prerequisites
 
 | Tool | Version | Purpose |
 |------|---------|---------|
-| **JDK** | 17+ | Compile & run |
-| **Maven** | 3.8+ | Build & dependency management |
-| **Webcam** | — | Real-time detection (optional) |
-| **Inno Setup 6** | — | Build installer (optional) |
+| **JDK** | 25 | Compile & run (Optimized for modern JVM) |
+| **Maven** | 3.9+ | Build & dependency management |
+| **Inno Setup 6** | — | Required only for building the `.exe` installer |
 
-## 🚀 How to Run
+## 🚀 Getting Started
 
-### Development
+### Development Mode
 ```bash
 # Clone the repository
 git clone https://github.com/OniAntou/Face-Recognition.git
 cd Face-Recognition
 
-# Run the application
+# Run using Maven
 mvn javafx:run
 ```
 
-### Build Executable JAR
+### Building the Installer (Windows)
 ```bash
-mvn clean package
-java -jar target/opencv-demo-1.0-SNAPSHOT.jar
-```
-
-### Build Windows Installer
-```bash
-# Requires JDK 24 + Inno Setup 6
+# Requires JDK 25 + Inno Setup 6
+# Automatically optimizes JRE size and bundles AI models
 build_installer.bat
 ```
-This creates `releases/FaceRecognition_Setup.exe` — a standalone installer that bundles the app, JRE, and AI models. End users don't need Java installed.
+The output will be in `releases/FaceRecognition_Setup.exe`. This installer is standalone and does **not** require the end user to have Java installed.
 
 ## 📁 Project Structure
 
 ```
 Face-Recognition/
-├── data/                          # AI models
-│   ├── deploy.prototxt            # Face detection config
-│   ├── res10_300x300_ssd_iter_140000.caffemodel  # Face detection model
-│   ├── gender_deploy.prototxt     # Gender classification config
-│   └── gender_net.caffemodel      # Gender classification model
+├── data/                          # AI Model weights & configs
+│   ├── yolov8n-face.onnx          # YOLOv8 face detection (Primary)
+│   ├── res10_300x300_ssd_...      # SSD ResNet-10 (Fallback)
+│   └── gender_net.caffemodel      # Gender classification
 ├── src/main/java/com/example/facedetection/
-│   ├── MainApp.java               # Application entry point & lifecycle
-│   ├── Launcher.java              # Fat JAR launcher (bypasses module check)
-│   ├── controller/
-│   │   └── ViewController.java    # UI controller (camera, image, display)
 │   ├── service/
-│   │   └── FaceDetectorService.java  # Core AI engine (detection + gender)
-│   └── cli/
-│       └── FaceRecognitionCli.java   # Command-line interface
-├── src/main/resources/
-│   ├── com/example/facedetection/
-│   │   ├── scene.fxml             # UI layout
-│   │   └── styles.css             # Dark theme styles
-│   └── logback.xml                # Logging configuration
-├── installer/
-│   └── modern_setup.iss           # Inno Setup installer script
-├── build_installer.bat            # One-click build + installer script
-└── pom.xml                        # Maven configuration
+│   │   ├── YoloFaceService.java   # YOLOv8 ONNX implementation
+│   │   └── FaceDetectorService.java # SSD & Gender engine
+│   └── controller/
+│       └── ViewController.java    # UI logic & Silent Update engine
+├── installer/                     # Inno Setup deployment scripts
+└── build_installer.bat            # Automated build pipeline
 ```
 
 ## ⚡ Performance Optimizations
 
-- **Pre-allocated constants** — Scalar/Size objects reused across frames (zero GC pressure)
-- **Frame dropping** — AtomicBoolean guard skips frames when AI processing is slower than camera capture
-- **Reusable encoding buffer** — Single MatOfByte for Mat→Image conversion
-- **Camera tuning** — 640×480 resolution, buffer size = 1 for lowest latency
-- **Daemon threads** — Camera executor won't block JVM exit
-- **Thread-safe DNN** — Synchronized locks on face and gender network inference
-- **Deterministic cleanup** — try/finally + safeRelease() for all native OpenCV Mat objects
-- **Minimal fat JAR** — Non-Windows native libraries stripped (~75% size reduction)
-- **Optimized JRE** — jlink strips debug info, headers, man pages + zip-6 compression
-- **G1GC tuning** — 10ms max pause target for smooth real-time UI
+- **JVM 25 Intrinsic Support** — Leveraging modern Java features for better memory management.
+- **Atomic Processing Guard** — Prevents UI lag by skipping frames if the AI thread is busy.
+- **Zero-Copy Mat Buffer** — Reusable `MatOfByte` buffers for high-speed BMP encoding.
+- **G1GC Tuning** — Hard-coded 10ms GC pause target for stutter-free video playback.
+- **Hardware Backend** — Preference for `DNN_TARGET_OPENCL` to offload work to the GPU.
 
-## 🧠 AI Models
+## 🧠 AI Model Specs
 
-| Model | File | Size | Purpose |
-|-------|------|------|---------|
-| SSD ResNet-10 | `res10_300x300_ssd_iter_140000.caffemodel` | 10 MB | Face detection |
-| Levi-Hassner CaffeNet | `gender_net.caffemodel` | 44 MB | Gender classification |
+| Model | Format | Size | Backend |
+|-------|--------|------|---------|
+| **YOLOv8-face** | ONNX | 12 MB | OpenCV DNN (Primary) |
+| **SSD ResNet-10**| Caffe | 10 MB | OpenCV DNN (Fallback) |
+| **Levi-Hassner** | Caffe | 44 MB | Gender Classification |
 
-### Gender Preprocessing Pipeline
-1. **Proportional padding** (40% of face dimensions) for forehead/chin context
-2. **Square crop** centered on face to prevent aspect ratio distortion
-3. **Resize** to 227×227 with BGR mean subtraction
-4. **Confidence threshold** at 55% — below shows "Unknown"
+## 🔄 Update Mechanism
 
-## 📜 Credits
+The application checks for updates on startup by comparing the local `Build-Time` (from Manifest) with the latest release metadata on GitHub. If a newer version is found:
+1. User is notified via the status bar.
+2. Clicking the notification downloads the installer to a temp directory.
+3. The installer is launched with `/SILENT` flags, and the app exits to allow a seamless overwrite.
 
-- **Original Authors**: [OniAntou](https://github.com/OniAntou), [Casluminous](https://github.com/Casluminous)
-- **AI Models**: [Levi & Hassner (2015)](https://talhassner.github.io/home/publication/2015_CVPR) — Age and Gender Classification using CNNs
-- **Face Detection**: [OpenCV DNN SSD ResNet-10](https://github.com/opencv/opencv/tree/master/samples/dnn)
+## 📜 Credits & License
 
-## 📄 License
-
-This project is licensed under the **MIT License** - see the [LICENSE.txt](LICENSE.txt) file for details.
+- **Authors**: [OniAntou](https://github.com/OniAntou), [Casluminous](https://github.com/Casluminous)
+- **License**: [MIT License](LICENSE.txt)
 
 ---
 
 # 🇻🇳 Tiếng Việt
 
-# Nhận Diện Khuôn Mặt & Phân Loại Giới Tính
+# Nhận Diện & Phân Tích Khuôn Mặt (Professional Edition)
 
-Ứng dụng desktop **Nhận diện khuôn mặt** và **Phân loại giới tính** chuyên nghiệp, được xây dựng bằng **Java 17**, **OpenCV DNN**, và **JavaFX**.
+Ứng dụng desktop **Nhận diện khuôn mặt**, **Phân loại giới tính** và **Phân tích thời gian thực** hiệu suất cao, được xây dựng bằng **Java 25**, **OpenCV** và **JavaFX**.
 
-Phát hiện khuôn mặt theo thời gian thực bằng mô hình deep learning **SSD ResNet-10** và dự đoán giới tính bằng mô hình **Levi-Hassner CaffeNet** — tất cả trong giao diện Dark Mode hiện đại.
+Phiên bản này sở hữu engine AI lai (hybrid) sử dụng **YOLOv8-face** (qua ONNX) để phát hiện cực nhanh và **SSD ResNet-10** làm dự phòng, tích hợp cùng hệ thống phân loại giới tính **Levi-Hassner**.
 
 ---
 
-## ✨ Tính Năng
+## ✨ Tính Năng Nổi Bật
 
-- **Phát hiện khuôn mặt bằng AI** — Mô hình SSD ResNet-10 cho độ chính xác cao
-- **Phân loại giới tính** — Mô hình Levi-Hassner kèm hiển thị độ tin cậy (VD: "Male 92%")
-- **Camera thời gian thực** — Phát hiện trực tiếp từ webcam ở ~30 FPS với tối ưu bỏ frame
-- **Tải ảnh lên** — Hỗ trợ định dạng PNG, JPG, JPEG, GIF, BMP, WebP
-- **Giao diện Dark Mode** — Giao diện hiện đại sử dụng AtlantaFX theme
-- **Bố cục tự động** — Khung ảnh tự co giãn theo kích thước cửa sổ
-- **Trình cài đặt Windows** — Cài đặt một click qua Inno Setup, người dùng không cần cài Java
+- **Phát hiện AI Hybrid** — Hỗ trợ song song **YOLOv8-face** (ONNX) và **SSD ResNet-10** (Caffe).
+- **Phân loại giới tính** — Mô hình Levi-Hassner độ chính xác cao với thang điểm tin cậy.
+- **Cập nhật tự động (Silent Update)** — Tự động phát hiện và cài đặt phiên bản mới từ GitHub ngay trong app.
+- **Tăng tốc phần cứng** — Tự động sử dụng OpenCL/GPU để xử lý AI.
+- **Giao diện Dark UI Cao cấp** — Giao diện chuyên nghiệp, hiện đại dựa trên theme **AtlantaFX**.
+- **Camera thời gian thực** — Luồng stream 30+ FPS mượt mà với cơ chế chống lag và buffer độ trễ thấp.
+- **Bộ cài đặt Windows** — Cài đặt một click chuyên nghiệp, đóng gói sẵn JRE và các mô hình AI.
 
-## 🛠 Yêu Cầu
+## 🛠 Yêu Cầu Hệ Thống
 
 | Công cụ | Phiên bản | Mục đích |
 |---------|-----------|----------|
-| **JDK** | 17+ | Biên dịch & chạy |
-| **Maven** | 3.8+ | Quản lý build & thư viện |
-| **Webcam** | — | Phát hiện thời gian thực (tùy chọn) |
-| **Inno Setup 6** | — | Tạo trình cài đặt (tùy chọn) |
+| **JDK** | 25 | Biên dịch & chạy (Tối ưu cho JVM hiện đại) |
+| **Maven** | 3.9+ | Quản lý build và thư viện |
+| **Inno Setup 6** | — | Chỉ cần khi muốn đóng gói file `.exe` |
 
-## 🚀 Cách Chạy
+## 🚀 Hướng Dẫn Chạy
 
-### Phát triển
+### Chế độ Phát triển
 ```bash
 # Clone repository
 git clone https://github.com/OniAntou/Face-Recognition.git
 cd Face-Recognition
 
-# Chạy ứng dụng
+# Chạy bằng Maven
 mvn javafx:run
 ```
 
-### Tạo file JAR
+### Đóng gói Trình cài đặt (Windows)
 ```bash
-mvn clean package
-java -jar target/opencv-demo-1.0-SNAPSHOT.jar
-```
-
-### Tạo trình cài đặt Windows
-```bash
-# Yêu cầu JDK 24 + Inno Setup 6
+# Yêu cầu JDK 25 + Inno Setup 6
 build_installer.bat
 ```
-Lệnh này tạo file `releases/FaceRecognition_Setup.exe` — trình cài đặt độc lập bao gồm ứng dụng, JRE, và các mô hình AI. Người dùng cuối không cần cài Java.
+File kết quả sẽ nằm tại `releases/FaceRecognition_Setup.exe`. Đây là trình cài đặt độc lập, người dùng cuối **không cần** cài đặt Java.
 
 ## 📁 Cấu Trúc Dự Án
 
 ```
 Face-Recognition/
-├── data/                          # Mô hình AI
-│   ├── deploy.prototxt            # Cấu hình phát hiện khuôn mặt
-│   ├── res10_300x300_ssd_iter_140000.caffemodel  # Mô hình phát hiện khuôn mặt
-│   ├── gender_deploy.prototxt     # Cấu hình phân loại giới tính
-│   └── gender_net.caffemodel      # Mô hình phân loại giới tính
+├── data/                          # Trọng số & cấu hình mô hình AI
+│   ├── yolov8n-face.onnx          # YOLOv8 face detection (Chính)
+│   ├── res10_300x300_ssd_...      # SSD ResNet-10 (Dự phòng)
+│   └── gender_net.caffemodel      # Phân loại giới tính
 ├── src/main/java/com/example/facedetection/
-│   ├── MainApp.java               # Điểm khởi chạy & quản lý vòng đời
-│   ├── Launcher.java              # Launcher cho fat JAR
-│   ├── controller/
-│   │   └── ViewController.java    # Controller giao diện (camera, ảnh, hiển thị)
 │   ├── service/
-│   │   └── FaceDetectorService.java  # Engine AI chính (phát hiện + giới tính)
-│   └── cli/
-│       └── FaceRecognitionCli.java   # Giao diện dòng lệnh
-├── src/main/resources/
-│   ├── com/example/facedetection/
-│   │   ├── scene.fxml             # Bố cục giao diện
-│   │   └── styles.css             # Giao diện Dark theme
-│   └── logback.xml                # Cấu hình logging
-├── installer/
-│   └── modern_setup.iss           # Script trình cài đặt Inno Setup
-├── build_installer.bat            # Script build + tạo installer một click
-└── pom.xml                        # Cấu hình Maven
+│   │   ├── YoloFaceService.java   # Triển khai YOLOv8 ONNX
+│   │   └── FaceDetectorService.java # Engine SSD & Giới tính
+│   └── controller/
+│       └── ViewController.java    # Logic UI & Engine Cập nhật tự động
 ```
 
 ## ⚡ Tối Ưu Hiệu Suất
 
-- **Hằng số được cấp phát sẵn** — Đối tượng Scalar/Size tái sử dụng qua các frame (không tạo rác GC)
-- **Bỏ frame thông minh** — Cờ AtomicBoolean bỏ qua frame khi xử lý AI chậm hơn camera
-- **Bộ đệm encoding tái sử dụng** — Một MatOfByte duy nhất cho chuyển đổi Mat→Image
-- **Tinh chỉnh camera** — Độ phân giải 640×480, buffer size = 1 cho độ trễ thấp nhất
-- **Daemon thread** — Camera executor không chặn JVM thoát
-- **DNN an toàn đa luồng** — Khóa synchronized trên mỗi mạng neural
-- **Giải phóng bộ nhớ chắc chắn** — try/finally + safeRelease() cho mọi đối tượng OpenCV Mat
-- **Fat JAR tối giản** — Loại bỏ thư viện native không dùng (~75% giảm kích thước)
-- **JRE tối ưu** — jlink loại bỏ debug info, headers, man pages + nén zip-6
-- **G1GC tinh chỉnh** — Mục tiêu pause tối đa 10ms cho giao diện thời gian thực mượt mà
+- **Hỗ trợ JVM 25 Intrinsic** — Tận dụng các tính năng Java mới nhất để quản lý bộ nhớ tốt hơn.
+- **Cơ chế Atomic Processing** — Ngăn lag UI bằng cách bỏ qua frame nếu luồng AI đang bận.
+- **Zero-Copy Mat Buffer** — Tái sử dụng bộ đệm `MatOfByte` để encode BMP tốc độ cao.
+- **Tinh chỉnh G1GC** — Thiết lập mục tiêu pause GC 10ms để video không bị khựng.
+- **Hardware Backend** — Ưu tiên `DNN_TARGET_OPENCL` để đẩy tải xử lý sang GPU.
 
-## 🧠 Mô Hình AI
+## 🧠 Thông Số Mô Hình AI
 
-| Mô hình | File | Kích thước | Mục đích |
-|---------|------|------------|----------|
-| SSD ResNet-10 | `res10_300x300_ssd_iter_140000.caffemodel` | 10 MB | Phát hiện khuôn mặt |
-| Levi-Hassner CaffeNet | `gender_net.caffemodel` | 44 MB | Phân loại giới tính |
+| Mô hình | Định dạng | Kích thước | Backend |
+|---------|-----------|------------|---------|
+| **YOLOv8-face** | ONNX | 12 MB | OpenCV DNN (Chính) |
+| **SSD ResNet-10**| Caffe | 10 MB | OpenCV DNN (Dự phòng) |
+| **Levi-Hassner** | Caffe | 44 MB | Phân loại giới tính |
 
-### Pipeline Tiền Xử Lý Giới Tính
-1. **Padding tỷ lệ** (40% kích thước mặt) để bao gồm trán/cằm
-2. **Crop hình vuông** centered vào mặt để tránh méo tỷ lệ
-3. **Resize** về 227×227 với trừ mean BGR
-4. **Ngưỡng tin cậy** 55% — dưới ngưỡng hiển thị "Unknown"
+## 🔄 Cơ Chế Cập Nhật
 
-## 📜 Tác Giả
+Ứng dụng kiểm tra cập nhật khi khởi động bằng cách so sánh `Build-Time` nội bộ với metadata phiên bản mới nhất trên GitHub. Nếu có bản mới:
+1. Người dùng được thông báo qua thanh trạng thái.
+2. Nhấn vào thông báo sẽ tải bộ cài về thư mục tạm.
+3. Bộ cài được chạy với tham số `/SILENT`, app tự đóng để quá trình ghi đè diễn ra mượt mà.
 
-- **Tác giả gốc**: [OniAntou](https://github.com/OniAntou), [Casluminous](https://github.com/Casluminous)
-- **Mô hình AI**: [Levi & Hassner (2015)](https://talhassner.github.io/home/publication/2015_CVPR) — Phân loại tuổi và giới tính bằng CNN
-- **Phát hiện khuôn mặt**: [OpenCV DNN SSD ResNet-10](https://github.com/opencv/opencv/tree/master/samples/dnn)
+## 📜 Tác Giả & Giấy Phép
 
-## 📄 Giấy Phép
-
-Dự án này được cấp phép theo **Giấy phép MIT** - xem tệp [LICENSE.txt](LICENSE.txt) để biết chi tiết.
+- **Tác giả**: [OniAntou](https://github.com/OniAntou), [Casluminous](https://github.com/Casluminous)
+- **Giấy phép**: [MIT License](LICENSE.txt)
