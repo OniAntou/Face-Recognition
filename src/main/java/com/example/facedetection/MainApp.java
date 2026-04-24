@@ -15,6 +15,7 @@ import org.slf4j.LoggerFactory;
 public class MainApp extends Application {
 
     private static final Logger logger = LoggerFactory.getLogger(MainApp.class);
+    private static javafx.application.HostServices hostServicesInstance;
     private ViewController controller;
 
     @Override
@@ -38,6 +39,9 @@ public class MainApp extends Application {
         try {
             // Set theme
             Application.setUserAgentStylesheet(new PrimerDark().getUserAgentStylesheet());
+            
+            // Store HostServices for later use
+            hostServicesInstance = getHostServices();
 
             // Try loading OpenCV
             try {
@@ -113,6 +117,10 @@ public class MainApp extends Application {
     public void stop() {
         // This may also be called by Platform.exit() — guard with performShutdown
         performShutdown();
+    }
+
+    public static javafx.application.HostServices getHostServicesInstance() {
+        return hostServicesInstance;
     }
 
     public static void main(String[] args) {

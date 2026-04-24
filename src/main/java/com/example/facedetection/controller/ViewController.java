@@ -1,6 +1,8 @@
 package com.example.facedetection.controller;
 
+import com.example.facedetection.MainApp;
 import com.example.facedetection.service.FaceDetectorService;
+import com.example.facedetection.service.YoloFaceService;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.Alert;
@@ -14,24 +16,31 @@ import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfByte;
+import org.opencv.core.Rect;
 import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.videoio.VideoCapture;
 import org.opencv.videoio.Videoio;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.net.URI;
+import java.net.URL;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.jar.Manifest;
 
 /**
  * JavaFX controller for the Face Recognition UI.
@@ -413,11 +422,16 @@ public class ViewController {
     }
 
     /**
-     * Checks for application updates from GitHub API.
+     * Checks for application updates from GitHub API by comparing Build-Time with published_at.
      */
     private void checkUpdates() {
         CompletableFuture.runAsync(() -> {
             try {
+                // Step 1: Get local build time from Manifest
+                Instant buildInstant = getLocalBuildTime();
+                logger.info("Local Build Time: {}", buildInstant);
+
+                // Step 2: Fetch latest release info from GitHub
                 HttpClient client = HttpClient.newHttpClient();
                 HttpRequest request = HttpRequest.newBuilder()
                         .uri(URI.create("https://api.github.com/repos/OniAntou/Face-Recognition/releases/latest"))
@@ -427,23 +441,83 @@ public class ViewController {
 
                 HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
                 if (response.statusCode() == 200) {
-                    // Simple regex to find tag_name (avoids adding heavy JSON lib)
                     String body = response.body();
-                    java.util.regex.Matcher matcher = java.util.regex.Pattern.compile("\"tag_name\"\\s*:\\s*\"([^\"]+)\"").matcher(body);
-                    if (matcher.find()) {
-                        String latestVersion = matcher.group(1);
-                        String currentVersion = "v1.0.0"; // Should match your pom.xml version
-                        
-                        if (!latestVersion.equals(currentVersion)) {
+                    
+                    // Find published_at (e.g. "published_at":"2024-04-24T12:00:00Z")
+                    java.util.regex.Matcher dateMatcher = java.util.regex.Pattern.compile("\"published_at\"\\s*:\\s*\"([^\"]+)\"").matcher(body);
+                    
+                    // Find the download URL for the .exe asset
+                    java.util.regex.Matcher urlMatcher = java.util.regex.Pattern.compile("\"browser_download_url\"\\s*:\\s*\"([^\"]+\\.exe)\"").matcher(body);
+                    String downloadUrl = urlMatcher.find() ? urlMatcher.group(1) : null;
+                    
+                    if (dateMatcher.find() && downloadUrl != null) {
+                        Instant latestReleaseInstant = Instant.parse(dateMatcher.group(1));
+                        logger.info("Latest Release Time: {}", latestReleaseInstant);
+
+                        // If release is newer than build time (plus 1 minute buffer to account for upload delay)
+                        if (latestReleaseInstant.isAfter(buildInstant.plus(Duration.ofMinutes(1)))) {
                             Platform.runLater(() -> {
-                                statusLabel.setText("Update Available: " + latestVersion);
-                                statusLabel.setStyle("-fx-text-fill: #FFCC00;");
+                                statusLabel.setText("New Update Found (Click to install)");
+                                statusLabel.setStyle("-fx-text-fill: #FFCC00; -fx-cursor: hand;");
+                                statusLabel.setOnMouseClicked(event -> downloadAndInstall(downloadUrl));
                             });
                         }
                     }
                 }
             } catch (Exception e) {
                 logger.warn("Update check failed: {}", e.getMessage());
+            }
+        });
+    }
+
+    private Instant getLocalBuildTime() {
+        try {
+            URL res = getClass().getClassLoader().getResource("META-INF/MANIFEST.MF");
+            if (res != null) {
+                Manifest manifest = new Manifest(res.openStream());
+                String buildTime = manifest.getMainAttributes().getValue("Build-Time");
+                if (buildTime != null) {
+                    return Instant.parse(buildTime);
+                }
+            }
+        } catch (Exception ignored) {}
+        // Fallback for development (very old date)
+        return Instant.EPOCH;
+    }
+    /**
+     * Downloads the update installer in background and launches it.
+     */
+    private void downloadAndInstall(String downloadUrl) {
+        statusLabel.setText("Downloading update... please wait");
+        statusLabel.setDisable(true);
+
+        CompletableFuture.runAsync(() -> {
+            try {
+                HttpClient client = HttpClient.newBuilder()
+                        .followRedirects(HttpClient.Redirect.ALWAYS)
+                        .build();
+                HttpRequest request = HttpRequest.newBuilder()
+                        .uri(URI.create(downloadUrl))
+                        .build();
+
+                File tempFile = File.createTempFile("FaceRecognition_Setup_", ".exe");
+                tempFile.deleteOnExit();
+
+                client.send(request, HttpResponse.BodyHandlers.ofFile(tempFile.toPath()));
+
+                logger.info("Update downloaded to {}", tempFile.getAbsolutePath());
+                
+                // Launch the installer (use /SILENT if it's an Inno Setup installer)
+                new ProcessBuilder(tempFile.getAbsolutePath(), "/SILENT").start();
+                
+                // Exit application so installer can overwrite files
+                Platform.runLater(Platform::exit);
+            } catch (Exception e) {
+                logger.error("Failed to download update", e);
+                Platform.runLater(() -> {
+                    statusLabel.setText("Update failed. Try again later.");
+                    statusLabel.setDisable(false);
+                });
             }
         });
     }
