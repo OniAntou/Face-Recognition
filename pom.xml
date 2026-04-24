@@ -72,7 +72,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.13.0</version>
+                <version>3.14.0</version>
                 <configuration>
                     <source>25</source>
                     <target>25</target>
@@ -120,68 +120,21 @@
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-shade-plugin</artifactId>
-                <version>3.5.2</version>
-                <configuration>
-                    <createDependencyReducedPom>false</createDependencyReducedPom>
-                    <minimizeJar>true</minimizeJar>
-                    <filters>
-                        <!-- OpenCV: keep everything EXCEPT non-Windows native libs -->
-                        <filter>
-                            <artifact>org.openpnp:opencv</artifact>
-                            <includes>
-                                <include>**</include>
-                            </includes>
-                            <excludes>
-                                <!-- Remove Linux native libs (all architectures) -->
-                                <exclude>nu/pattern/opencv/linux/**</exclude>
-                                <!-- Remove macOS native libs (all architectures) -->
-                                <exclude>nu/pattern/opencv/osx/**</exclude>
-                                <!-- Remove Windows 32-bit (only keep x86_64) -->
-                                <exclude>nu/pattern/opencv/windows/x86_32/**</exclude>
-                            </excludes>
-                        </filter>
-                        <!-- Keep all JavaFX resources -->
-                        <filter>
-                            <artifact>org.openjfx:*</artifact>
-                            <includes>
-                                <include>**</include>
-                            </includes>
-                        </filter>
-                        <!-- Keep AtlantaFX theme resources -->
-                        <filter>
-                            <artifact>io.github.mkpaz:*</artifact>
-                            <includes>
-                                <include>**</include>
-                            </includes>
-                        </filter>
-                        <!-- Strip unnecessary metadata from all JARs -->
-                        <filter>
-                            <artifact>*:*</artifact>
-                            <excludes>
-                                <exclude>META-INF/*.SF</exclude>
-                                <exclude>META-INF/*.DSA</exclude>
-                                <exclude>META-INF/*.RSA</exclude>
-                                <exclude>META-INF/NOTICE*</exclude>
-                                <exclude>META-INF/LICENSE*</exclude>
-                                <exclude>META-INF/DEPENDENCIES</exclude>
-                                <exclude>META-INF/maven/**</exclude>
-                            </excludes>
-                        </filter>
-                    </filters>
-                </configuration>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <version>3.6.1</version>
                 <executions>
                     <execution>
+                        <id>copy-dependencies</id>
                         <phase>package</phase>
                         <goals>
-                            <goal>shade</goal>
+                            <goal>copy-dependencies</goal>
                         </goals>
                         <configuration>
-                            <transformers>
-                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                    <mainClass>com.example.facedetection.Launcher</mainClass>
-                                </transformer>
-                            </transformers>
+                            <outputDirectory>${project.build.directory}</outputDirectory>
+                            <overWriteReleases>false</overWriteReleases>
+                            <overWriteSnapshots>false</overWriteSnapshots>
+                            <overWriteIfNewer>true</overWriteIfNewer>
+                            <excludeTransitive>false</excludeTransitive>
                         </configuration>
                     </execution>
                 </executions>
@@ -190,7 +143,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
-                <version>3.3.0</version>
+                <version>3.4.0</version>
                 <configuration>
                     <archive>
                         <manifest>

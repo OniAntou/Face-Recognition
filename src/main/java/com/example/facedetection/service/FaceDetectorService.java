@@ -61,7 +61,32 @@ public class FaceDetectorService {
         if (genderNet.empty()) {
             throw new RuntimeException("Could not load Gender DNN model from " + genderModelPath);
         }
+        
+        // Enable hardware acceleration if available
+        enableHardwareAcceleration();
+        
         logger.info("Face & Gender DNN Detectors loaded successfully.");
+    }
+
+    /**
+     * Attempts to enable hardware acceleration (OpenCL/CUDA/Vulkan).
+     * Falls back to CPU if hardware is not compatible.
+     */
+    public void enableHardwareAcceleration() {
+        try {
+            // Default to OpenCL if available, which works on most GPUs
+            faceNet.setPreferableBackend(Dnn.DNN_BACKEND_DEFAULT);
+            faceNet.setPreferableTarget(Dnn.DNN_TARGET_OPENCL);
+            
+            genderNet.setPreferableBackend(Dnn.DNN_BACKEND_DEFAULT);
+            genderNet.setPreferableTarget(Dnn.DNN_TARGET_OPENCL);
+            
+            logger.info("Hardware acceleration (OpenCL) requested.");
+        } catch (Exception e) {
+            logger.warn("Could not enable hardware acceleration, falling back to CPU: {}", e.getMessage());
+            faceNet.setPreferableBackend(Dnn.DNN_BACKEND_OPENCV);
+            faceNet.setPreferableTarget(Dnn.DNN_TARGET_CPU);
+        }
     }
 
     /**
@@ -76,17 +101,25 @@ public class FaceDetectorService {
             // Draw face bounding box
             Imgproc.rectangle(image, rect.tl(), rect.br(), COLOR_BOX, 2);
 
-            // Predict gender with confidence
-            String[] result = predictGender(image, rect);
-            String label = result[0];
-            String confidence = result[1];
-
-            // Draw label with confidence (e.g. "Male 92%")
-            String displayText = label + " " + confidence;
-            Imgproc.putText(image, displayText, new Point(rect.x, rect.y - 10),
-                    Imgproc.FONT_HERSHEY_SIMPLEX, 0.7, COLOR_LABEL, 2);
+            // Predict and draw gender
+            drawGenderLabel(image, rect);
         }
         return faces.length;
+    }
+
+    /**
+     * Predicts gender for a face region and draws the label on the image.
+     */
+    public void drawGenderLabel(Mat image, Rect rect) {
+        // Predict gender with confidence
+        String[] result = predictGender(image, rect);
+        String label = result[0];
+        String confidence = result[1];
+
+        // Draw label with confidence (e.g. "Male 92%")
+        String displayText = label + " " + confidence;
+        Imgproc.putText(image, displayText, new Point(rect.x, rect.y - 10),
+                Imgproc.FONT_HERSHEY_SIMPLEX, 0.7, COLOR_LABEL, 2);
     }
 
     /**

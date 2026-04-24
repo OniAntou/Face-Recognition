@@ -5,6 +5,7 @@ import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -22,10 +23,14 @@ import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -58,9 +63,11 @@ public class ViewController {
     @FXML private StackPane resultViewport;
     @FXML private VBox sourceCard;
     @FXML private Button cameraButton;
+    @FXML private ComboBox<String> cameraSelector;
     @FXML private Label statusLabel;
 
     private FaceDetectorService faceDetectorService;
+    private YoloFaceService yoloFaceService;
     private VideoCapture capture;
     private ScheduledExecutorService timer;
     private ScheduledFuture<?> cameraTask;
@@ -79,25 +86,35 @@ public class ViewController {
             String faceConfigFile  = "deploy.prototxt";
             String genderModelFile = "gender_net.caffemodel";
             String genderConfigFile = "gender_deploy.prototxt";
+            String yoloModelFile   = "yolov8n-face.onnx";
 
             File dataDir = new File("data");
             if (!dataDir.exists()) {
-                // Fallback for jpackage installation structure
                 dataDir = new File("app" + File.separator + "data");
             }
 
-            String faceModelPath   = new File(dataDir, faceModelFile).getAbsolutePath();
-            String faceConfigPath  = new File(dataDir, faceConfigFile).getAbsolutePath();
-            String genderModelPath = new File(dataDir, genderModelFile).getAbsolutePath();
-            String genderConfigPath = new File(dataDir, genderConfigFile).getAbsolutePath();
+            File yoloFile = new File(dataDir, yoloModelFile);
+            if (yoloFile.exists()) {
+                logger.info("YOLO model detected, using YOLO for detection.");
+                yoloFaceService = new YoloFaceService(yoloFile.getAbsolutePath());
+            }
 
             faceDetectorService = new FaceDetectorService(
-                    faceModelPath, faceConfigPath, genderModelPath, genderConfigPath);
+                    new File(dataDir, faceModelFile).getAbsolutePath(),
+                    new File(dataDir, faceConfigFile).getAbsolutePath(),
+                    new File(dataDir, genderModelFile).getAbsolutePath(),
+                    new File(dataDir, genderConfigFile).getAbsolutePath());
             capture = new VideoCapture();
 
             // Bind ImageViews to fill their parent containers dynamically
             bindImageViewToParent(originalImageView, sourceViewport);
             bindImageViewToParent(processedImageView, resultViewport);
+
+            // Detect available cameras
+            detectCameras();
+
+            // Check for updates in background
+            checkUpdates();
         } catch (Exception e) {
             logger.error("Initialization Error", e);
             showError("Initialization Error", "Could not load AI models: " + e.getMessage());
@@ -135,9 +152,17 @@ public class ViewController {
     }
 
     private void startCamera() {
-        capture.open(0);
+        int cameraIndex = 0;
+        String selected = cameraSelector.getSelectionModel().getSelectedItem();
+        if (selected != null && selected.contains("Camera ")) {
+            try {
+                cameraIndex = Integer.parseInt(selected.replace("Camera ", ""));
+            } catch (NumberFormatException ignored) {}
+        }
+
+        capture.open(cameraIndex);
         if (!capture.isOpened()) {
-            showError("Camera Error", "Could not open camera device.");
+            showError("Camera Error", "Could not open camera device at index " + cameraIndex);
             return;
         }
 
@@ -171,41 +196,54 @@ public class ViewController {
      * Uses an atomic flag to skip frames if the previous one hasn't finished yet.
      */
     private void captureAndProcessFrame() {
-        // Skip this frame if we're still processing the previous one
         if (!processing.compareAndSet(false, true)) {
             return;
         }
 
-        Mat frame = null;
-        Mat processedFrame = null;
-        try {
-            frame = grabFrame();
-            if (frame == null || frame.empty()) {
-                return;
+        Mat frame = grabFrame();
+        if (frame == null || frame.empty()) {
+            processing.set(false);
+            safeRelease(frame);
+            return;
+        }
+
+        // Offload AI processing to a background task to keep the capture thread responsive
+        CompletableFuture.supplyAsync(() -> {
+            Mat processedFrame = frame.clone();
+            
+            // Use YOLO if available, otherwise fallback to Caffe
+            int faceCount;
+            if (yoloFaceService != null) {
+                Rect[] faces = yoloFaceService.detectFaces(processedFrame);
+                faceCount = faces.length;
+                // Still use the drawing/gender logic from the old service for convenience
+                // or we could refactor this better later.
+                for (Rect rect : faces) {
+                    org.opencv.imgproc.Imgproc.rectangle(processedFrame, rect.tl(), rect.br(), new org.opencv.core.Scalar(0, 255, 0), 2);
+                    // Add gender prediction
+                    faceDetectorService.drawGenderLabel(processedFrame, rect);
+                }
+            } else {
+                faceCount = faceDetectorService.detectAndDrawFaces(processedFrame);
             }
-
+            
+            // Encode both for UI
             Image original = mat2Image(frame);
-
-            // Process a copy for detection
-            processedFrame = frame.clone();
-            int faceCount = faceDetectorService.detectAndDrawFaces(processedFrame);
             Image processed = mat2Image(processedFrame);
-
-            // Update UI on JavaFX thread
-            final int count = faceCount;
-            Platform.runLater(() -> {
-                if (!cameraActive) return; // Guard against late updates after stop
-                originalImageView.setImage(original);
-                processedImageView.setImage(processed);
-                statusLabel.setText("Live \u00B7 " + count + " face" + (count != 1 ? "s" : "") + " detected");
-            });
-        } catch (Exception e) {
-            logger.error("Error processing camera frame", e);
-        } finally {
+            
             safeRelease(processedFrame);
+            return new Object[]{original, processed, faceCount};
+        }).thenAcceptAsync(results -> {
+            if (!cameraActive) return;
+            
+            originalImageView.setImage((Image) results[0]);
+            processedImageView.setImage((Image) results[1]);
+            int count = (int) results[2];
+            statusLabel.setText("Live \u00B7 " + count + " face" + (count != 1 ? "s" : "") + " detected");
+        }, Platform::runLater).whenComplete((v, e) -> {
             safeRelease(frame);
             processing.set(false);
-        }
+        });
     }
 
     /**
@@ -349,6 +387,65 @@ public class ViewController {
         alert.setHeaderText(null);
         alert.setContentText(message);
         alert.showAndWait();
+    }
+
+    /**
+     * Detects available camera devices by attempting to open indices.
+     */
+    private void detectCameras() {
+        List<String> cameras = new ArrayList<>();
+        // Check first 5 indices as a reasonable limit
+        for (int i = 0; i < 5; i++) {
+            VideoCapture temp = new VideoCapture(i);
+            if (temp.isOpened()) {
+                cameras.add("Camera " + i);
+                temp.release();
+            }
+        }
+        
+        if (cameras.isEmpty()) {
+            cameras.add("No Camera Found");
+        }
+        
+        cameraSelector.getItems().setAll(cameras);
+        cameraSelector.getSelectionModel().selectFirst();
+        logger.info("Detected {} camera(s)", cameras.size());
+    }
+
+    /**
+     * Checks for application updates from GitHub API.
+     */
+    private void checkUpdates() {
+        CompletableFuture.runAsync(() -> {
+            try {
+                HttpClient client = HttpClient.newHttpClient();
+                HttpRequest request = HttpRequest.newBuilder()
+                        .uri(URI.create("https://api.github.com/repos/OniAntou/Face-Recognition/releases/latest"))
+                        .header("Accept", "application/json")
+                        .timeout(Duration.ofSeconds(5))
+                        .build();
+
+                HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+                if (response.statusCode() == 200) {
+                    // Simple regex to find tag_name (avoids adding heavy JSON lib)
+                    String body = response.body();
+                    java.util.regex.Matcher matcher = java.util.regex.Pattern.compile("\"tag_name\"\\s*:\\s*\"([^\"]+)\"").matcher(body);
+                    if (matcher.find()) {
+                        String latestVersion = matcher.group(1);
+                        String currentVersion = "v1.0.0"; // Should match your pom.xml version
+                        
+                        if (!latestVersion.equals(currentVersion)) {
+                            Platform.runLater(() -> {
+                                statusLabel.setText("Update Available: " + latestVersion);
+                                statusLabel.setStyle("-fx-text-fill: #FFCC00;");
+                            });
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                logger.warn("Update check failed: {}", e.getMessage());
+            }
+        });
     }
 
     /**

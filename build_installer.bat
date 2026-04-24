@@ -4,6 +4,8 @@ echo   FACE RECOGNITION - INSTALLER BUILDER
 echo ==========================================
 echo.
 echo Step 1: Building project with Maven...
+set "JAVA_HOME=C:\Users\USER\.jdk\jdk-25"
+set "PATH=%JAVA_HOME%\bin;%PATH%"
 call mvn clean package -q -DskipTests
 if errorlevel 1 (
     echo.
@@ -15,7 +17,7 @@ echo Maven build completed successfully.
 echo.
 echo Step 2: Creating App Image with jpackage...
 if exist "target\dist" rd /s /q "target\dist"
-"C:\Program Files\Java\jdk-24\bin\jpackage.exe" ^
+"%JAVA_HOME%\bin\jpackage.exe" ^
     --type app-image ^
     --name FaceRecognition ^
     --input target ^
