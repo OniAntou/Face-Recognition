@@ -3,6 +3,11 @@ echo ==========================================
 echo   FACE RECOGNITION - INSTALLER BUILDER
 echo ==========================================
 echo.
+echo Step 0: Ensuring application is closed and cleaning up...
+taskkill /F /IM FaceRecognition.exe /T >nul 2>&1
+if exist "target" rd /s /q "target"
+if exist "releases\FaceRecognition_Setup.exe" del "releases\FaceRecognition_Setup.exe"
+
 echo Step 1: Building project with Maven...
 set "JAVA_HOME=C:\Users\USER\.jdk\jdk-25"
 set "PATH=%JAVA_HOME%\bin;%PATH%"
@@ -16,7 +21,6 @@ if errorlevel 1 (
 echo Maven build completed successfully.
 echo.
 echo Step 2: Creating App Image with jpackage...
-if exist "target\dist" rd /s /q "target\dist"
 "%JAVA_HOME%\bin\jpackage.exe" ^
     --type app-image ^
     --name FaceRecognition ^

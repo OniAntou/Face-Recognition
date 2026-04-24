@@ -40,7 +40,6 @@
                         prefHeight="38.0" prefWidth="150.0"
                         text="📁  Upload Image"
                         styleClass="btn-secondary" />
-            </HBox>
         </HBox>
     </top>
 
