@@ -454,13 +454,15 @@ public class ViewController {
                         Instant latestReleaseInstant = Instant.parse(dateMatcher.group(1));
                         logger.info("Latest Release Time: {}", latestReleaseInstant);
 
-                        // If release is newer than build time (plus 1 minute buffer to account for upload delay)
-                        if (latestReleaseInstant.isAfter(buildInstant.plus(Duration.ofMinutes(1)))) {
+                        // If release is newer than build time (plus 1 hour buffer to account for build-to-publish lag)
+                        if (latestReleaseInstant.isAfter(buildInstant.plus(Duration.ofHours(1)))) {
                             Platform.runLater(() -> {
                                 statusLabel.setText("New Update Found (Click to install)");
                                 statusLabel.setStyle("-fx-text-fill: #FFCC00; -fx-cursor: hand;");
                                 statusLabel.setOnMouseClicked(event -> downloadAndInstall(downloadUrl));
                             });
+                        } else {
+                            logger.info("Application is up to date (Latest: {}, Local: {})", latestReleaseInstant, buildInstant);
                         }
                     }
                 }
@@ -472,17 +474,25 @@ public class ViewController {
 
     private Instant getLocalBuildTime() {
         try {
-            URL res = getClass().getClassLoader().getResource("META-INF/MANIFEST.MF");
+            // Get the manifest of the JAR containing this class
+            URL res = ViewController.class.getProtectionDomain().getCodeSource().getLocation();
             if (res != null) {
-                Manifest manifest = new Manifest(res.openStream());
-                String buildTime = manifest.getMainAttributes().getValue("Build-Time");
-                if (buildTime != null) {
-                    return Instant.parse(buildTime);
+                // If it's a jar file, open the manifest inside it
+                URL manifestUrl = new URL("jar:" + res.toExternalForm() + "!/META-INF/MANIFEST.MF");
+                try (java.io.InputStream is = manifestUrl.openStream()) {
+                    Manifest manifest = new Manifest(is);
+                    String buildTime = manifest.getMainAttributes().getValue("Build-Time");
+                    if (buildTime != null) {
+                        return Instant.parse(buildTime);
+                    }
                 }
             }
-        } catch (Exception ignored) {}
-        // Fallback for development (very old date)
-        return Instant.EPOCH;
+        } catch (Exception e) {
+            logger.debug("Could not read Build-Time from manifest: {}", e.getMessage());
+        }
+        // Fallback for development: use current time minus a bit so we don't spam updates during dev
+        // but still allow testing the UI.
+        return Instant.now().minus(Duration.ofDays(365));
     }
     /**
      * Downloads the update installer in background and launches it.
@@ -507,11 +517,14 @@ public class ViewController {
 
                 logger.info("Update downloaded to {}", tempFile.getAbsolutePath());
                 
-                // Launch the installer (use /SILENT if it's an Inno Setup installer)
-                new ProcessBuilder(tempFile.getAbsolutePath(), "/SILENT").start();
+                // Launch the installer with robust flags
+                // /SILENT: show progress only
+                // /SP-: skip the "This will install..." prompt
+                // /NOCANCEL: prevent accidental cancellation
+                new ProcessBuilder(tempFile.getAbsolutePath(), "/SILENT", "/SP-", "/NOCANCEL").start();
                 
-                // Exit application so installer can overwrite files
-                Platform.runLater(Platform::exit);
+                // Exit application immediately so installer can overwrite files
+                System.exit(0);
             } catch (Exception e) {
                 logger.error("Failed to download update", e);
                 Platform.runLater(() -> {

@@ -29,6 +29,10 @@ UninstallDisplayIcon={app}\FaceRecognition.exe
 ; Better UX
 DisableWelcomePage=no
 DisableProgramGroupPage=yes
+; Ensure app is closed before install
+AppMutex=FaceRecognitionMutex
+CloseApplications=yes
+CloseApplicationsFilter=*.exe,*.dll
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
