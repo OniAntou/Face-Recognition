@@ -134,7 +134,7 @@ public class FaceDetectorService {
      *
      * @return String array: [0] = label ("Male"/"Female"/"Unknown"), [1] = confidence ("92%")
      */
-    private String[] predictGender(Mat image, Rect faceRect) {
+    public String[] predictGender(Mat image, Rect faceRect) {
         Mat face = null;
         Mat blob = null;
         Mat genderPreds = null;

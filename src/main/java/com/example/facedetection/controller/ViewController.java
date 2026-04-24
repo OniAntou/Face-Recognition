@@ -35,11 +35,15 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.Map;
 import java.util.jar.Manifest;
 
 /**
@@ -81,9 +85,26 @@ public class ViewController {
     private ScheduledExecutorService timer;
     private ScheduledFuture<?> cameraTask;
     private volatile boolean cameraActive = false;
+    private volatile boolean updateFound = false;
 
     /** Guard flag to skip frames if previous frame is still being processed. */
     private final AtomicBoolean processing = new AtomicBoolean(false);
+
+    /** Dedicated executor for AI processing to keep capture and UI threads responsive. */
+    private final ExecutorService aiExecutor = Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, "ai-processor");
+        t.setDaemon(true);
+        t.setPriority(Thread.NORM_PRIORITY - 1); // Slightly lower priority
+        return t;
+    });
+
+    /** Counter for throttling heavy AI operations (like gender prediction). */
+    private final AtomicLong frameCounter = new AtomicLong(0);
+    private static final int GENDER_PREDICTION_INTERVAL = 10; // Predict every 10 frames
+    private int lastFaceCount = 0;
+
+    /** Cache for detected faces to reduce flickering and redundant AI calls. */
+    private final Map<Integer, String[]> genderCache = new ConcurrentHashMap<>();
 
     /** Reusable buffer for Mat -> Image encoding (reduces GC pressure). */
     private final MatOfByte encodingBuffer = new MatOfByte();
@@ -216,39 +237,80 @@ public class ViewController {
             return;
         }
 
-        // Offload AI processing to a background task to keep the capture thread responsive
+        long currentFrame = frameCounter.incrementAndGet();
+
+        // Offload AI processing to a DEDICATED background task
         CompletableFuture.supplyAsync(() -> {
-            Mat processedFrame = frame.clone();
-            
-            // Use YOLO if available, otherwise fallback to Caffe
-            int faceCount;
-            if (yoloFaceService != null) {
-                Rect[] faces = yoloFaceService.detectFaces(processedFrame);
-                faceCount = faces.length;
-                // Still use the drawing/gender logic from the old service for convenience
-                // or we could refactor this better later.
-                for (Rect rect : faces) {
-                    org.opencv.imgproc.Imgproc.rectangle(processedFrame, rect.tl(), rect.br(), new org.opencv.core.Scalar(0, 255, 0), 2);
-                    // Add gender prediction
-                    faceDetectorService.drawGenderLabel(processedFrame, rect);
+            Mat processedFrame = new Mat();
+            try {
+                // Downscale to 480p width if original is larger, for faster processing
+                double scale = 1.0;
+                if (frame.cols() > 640) {
+                    scale = 640.0 / frame.cols();
+                    org.opencv.imgproc.Imgproc.resize(frame, processedFrame, new org.opencv.core.Size(640, frame.rows() * scale));
+                } else {
+                    frame.copyTo(processedFrame);
                 }
-            } else {
-                faceCount = faceDetectorService.detectAndDrawFaces(processedFrame);
+                
+                // Use YOLO if available, otherwise fallback to SSD Caffe
+                Rect[] faces;
+                int faceCount;
+                
+                if (yoloFaceService != null) {
+                    faces = yoloFaceService.detectFaces(processedFrame);
+                } else if (faceDetectorService != null) {
+                    faces = faceDetectorService.detectFaces(processedFrame);
+                } else {
+                    faces = new Rect[0];
+                }
+                
+                faceCount = faces.length;
+                
+                // If number of faces changed, clear cache to avoid label swapping
+                if (faceCount != lastFaceCount) {
+                    genderCache.clear();
+                    lastFaceCount = faceCount;
+                }
+
+                for (int i = 0; i < faces.length; i++) {
+                    Rect rect = faces[i];
+                    org.opencv.imgproc.Imgproc.rectangle(processedFrame, rect.tl(), rect.br(), new org.opencv.core.Scalar(0, 255, 0), 2);
+                    
+                    // Throttling: Only predict gender every X frames OR if not in cache
+                    if (faceDetectorService != null && (currentFrame % GENDER_PREDICTION_INTERVAL == 0 || !genderCache.containsKey(i))) {
+                        String[] result = faceDetectorService.predictGender(processedFrame, rect);
+                        genderCache.put(i, result);
+                    }
+                    
+                    String[] genderInfo = genderCache.get(i);
+                    if (genderInfo != null) {
+                        String label = genderInfo[0] + " " + genderInfo[1];
+                        org.opencv.imgproc.Imgproc.putText(processedFrame, label, 
+                            new org.opencv.core.Point(rect.x, rect.y - 10),
+                            org.opencv.imgproc.Imgproc.FONT_HERSHEY_SIMPLEX, 0.6, 
+                            new org.opencv.core.Scalar(0, 255, 255), 2);
+                    }
+                }
+                
+                // Encode both for UI - Note: mat2Image now faster
+                Image original = mat2Image(frame);
+                Image processed = mat2Image(processedFrame);
+                
+                return new Object[]{original, processed, faceCount};
+            } finally {
+                safeRelease(processedFrame);
             }
-            
-            // Encode both for UI
-            Image original = mat2Image(frame);
-            Image processed = mat2Image(processedFrame);
-            
-            safeRelease(processedFrame);
-            return new Object[]{original, processed, faceCount};
-        }).thenAcceptAsync(results -> {
+        }, aiExecutor).thenAcceptAsync(results -> {
             if (!cameraActive) return;
             
             originalImageView.setImage((Image) results[0]);
             processedImageView.setImage((Image) results[1]);
-            int count = (int) results[2];
-            statusLabel.setText("Live \u00B7 " + count + " face" + (count != 1 ? "s" : "") + " detected");
+            
+            // Only update status label if no update notification is active
+            if (!updateFound) {
+                int count = (int) results[2];
+                statusLabel.setText("Live \u00B7 " + count + " face" + (count != 1 ? "s" : "") + " detected");
+            }
         }, Platform::runLater).whenComplete((v, e) -> {
             safeRelease(frame);
             processing.set(false);
@@ -296,6 +358,10 @@ public class ViewController {
             timer = null;
         }
 
+        // We don't shut down aiExecutor here because it's used globally, 
+        // but we should clear the cache
+        genderCache.clear();
+
         // Release camera device
         try {
             if (capture != null && capture.isOpened()) {
@@ -338,7 +404,9 @@ public class ViewController {
             processedImage = image.clone();
             int faceCount = faceDetectorService.detectAndDrawFaces(processedImage);
             processedImageView.setImage(mat2Image(processedImage));
-            statusLabel.setText("Done \u00B7 " + faceCount + " face" + (faceCount != 1 ? "s" : "") + " detected");
+            if (!updateFound) {
+                statusLabel.setText("Done \u00B7 " + faceCount + " face" + (faceCount != 1 ? "s" : "") + " detected");
+            }
         } finally {
             safeRelease(processedImage);
             safeRelease(image);
@@ -456,6 +524,7 @@ public class ViewController {
 
                         // If release is newer than build time (plus 1 hour buffer to account for build-to-publish lag)
                         if (latestReleaseInstant.isAfter(buildInstant.plus(Duration.ofHours(1)))) {
+                            updateFound = true;
                             Platform.runLater(() -> {
                                 statusLabel.setText("New Update Found (Click to install)");
                                 statusLabel.setStyle("-fx-text-fill: #FFCC00; -fx-cursor: hand;");
@@ -541,6 +610,9 @@ public class ViewController {
      */
     public void shutdown() {
         releaseCamera();
+        if (aiExecutor != null) {
+            aiExecutor.shutdownNow();
+        }
         synchronized (encodingBuffer) {
             try {
                 encodingBuffer.release();
