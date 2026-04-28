@@ -17,20 +17,20 @@ public class MainApp extends Application {
     private static final Logger logger = LoggerFactory.getLogger(MainApp.class);
     private static javafx.application.HostServices hostServicesInstance;
     private ViewController controller;
+    private final java.util.concurrent.atomic.AtomicBoolean isShuttingDown = new java.util.concurrent.atomic.AtomicBoolean(false);
 
     @Override
     public void init() {
         // Register a safety-net shutdown hook that will forcibly kill the JVM
         // if the normal stop() flow hangs (e.g. OpenCV native thread stuck).
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            logger.info("Shutdown hook: forcing halt in 3 seconds if still alive...");
             try {
-                Thread.sleep(3000);
-            } catch (InterruptedException ignored) {
-                // interrupted = we're already shutting down fast
-            }
-            // If we reach here, something is blocking JVM exit — force kill
-            Runtime.getRuntime().halt(0);
+                // If we're still here after 2 seconds of shutdown start, force halt.
+                // This is a safety net for native OpenCV threads that don't respect interrupts.
+                Thread.sleep(2000);
+                logger.info("Shutdown safety net triggered: Forcing halt...");
+                Runtime.getRuntime().halt(0);
+            } catch (InterruptedException ignored) {}
         }, "shutdown-safety-net"));
     }
 
@@ -65,7 +65,8 @@ public class MainApp extends Application {
 
             // Ensure the app exits when the window is closed
             stage.setOnCloseRequest(event -> {
-                event.consume();          // We handle shutdown ourselves
+                event.consume();
+                stage.hide(); // Hide immediately to give feedback to user
                 performShutdown();
             });
 
@@ -83,21 +84,35 @@ public class MainApp extends Application {
      * the JavaFX thread if OpenCV hangs.
      */
     private void performShutdown() {
+        if (!isShuttingDown.compareAndSet(false, true)) {
+            return;
+        }
+
         logger.info("Application shutting down...");
 
-        Thread shutdownThread = new Thread(() -> {
-            // Step 1: Try to gracefully release resources
-            if (controller != null) {
-                try {
-                    controller.shutdown();
-                } catch (Exception e) {
-                    logger.error("Error during controller shutdown", e);
-                }
-            }
+        // Watchdog thread: force halt if cleanup hangs for more than 3 seconds
+        Thread watchdog = new Thread(() -> {
+            try {
+                Thread.sleep(3000);
+                logger.warn("Shutdown cleanup taking too long, forcing halt...");
+                Runtime.getRuntime().halt(0);
+            } catch (InterruptedException ignored) {}
+        }, "shutdown-watchdog");
+        watchdog.setDaemon(true);
+        watchdog.start();
 
-            // Step 2: Force JVM exit — this will trigger the shutdown hook timer
-            // as a safety net in case System.exit() gets stuck on native threads.
-            System.exit(0);
+        // Start a daemon thread to do the cleanup
+        Thread shutdownThread = new Thread(() -> {
+            try {
+                if (controller != null) {
+                    controller.shutdown();
+                }
+            } catch (Throwable e) {
+                logger.error("Error during controller shutdown", e);
+            } finally {
+                // Force exit. This will trigger the shutdown hook (safety net)
+                System.exit(0);
+            }
         }, "app-shutdown");
 
         shutdownThread.setDaemon(true);
@@ -115,7 +130,7 @@ public class MainApp extends Application {
 
     @Override
     public void stop() {
-        // This may also be called by Platform.exit() — guard with performShutdown
+        // Ensure we try to shut down even if called by Platform.exit()
         performShutdown();
     }
 

@@ -1,24 +1,16 @@
-/* ============================================================
-   Face Recognition App – Modern Minimalist Theme
-   ============================================================ */
-
-/* ── Root Variables ────────────────────────────────────────── */
 .root {
     -fx-font-family: "Segoe UI", "SF Pro Display", system;
-    -color-brand:         #6C63FF;
-    -color-brand-hover:   #5A52E0;
-    -color-brand-subtle:  rgba(108, 99, 255, 0.08);
-    -color-surface:       #1A1A2E;
-    -color-surface-card:  #16213E;
-    -color-surface-hover: #1C2B4A;
-    -color-text-primary:  #E8E8F0;
-    -color-text-secondary:#8B8BA3;
-    -color-text-muted:    #5C5C78;
-    -color-border-card:   rgba(108, 99, 255, 0.12);
+    -color-brand: #6C63FF;
+    -color-brand-hover: #5A52E0;
+    -color-surface: #1A1A2E;
+    -color-surface-card: #16213E;
+    -color-text-primary: #E8E8F0;
+    -color-text-secondary: #8B8BA3;
+    -color-text-muted: #5C5C78;
+    -color-border-card: rgba(108, 99, 255, 0.12);
     -color-border-subtle: rgba(255, 255, 255, 0.06);
 }
 
-/* ── Header Bar ────────────────────────────────────────────── */
 #headerBar {
     -fx-background-color: -color-surface;
     -fx-padding: 16 28 16 28;
@@ -39,7 +31,6 @@
     -fx-padding: 2 0 0 0;
 }
 
-/* ── Action Buttons ────────────────────────────────────────── */
 .btn-primary {
     -fx-background-color: -color-brand;
     -fx-text-fill: white;
@@ -92,12 +83,27 @@
     -fx-effect: dropshadow(gaussian, rgba(224, 82, 82, 0.4), 12, 0, 0, 4);
 }
 
-/* ── Content Area ──────────────────────────────────────────── */
+.toggle-chip {
+    -fx-text-fill: -color-text-primary;
+    -fx-font-size: 12px;
+}
+
+.toggle-chip > .box {
+    -fx-background-color: rgba(255, 255, 255, 0.08);
+    -fx-background-radius: 4;
+    -fx-border-color: rgba(255, 255, 255, 0.18);
+    -fx-border-radius: 4;
+}
+
+.toggle-chip:selected > .box {
+    -fx-background-color: rgba(108, 99, 255, 0.25);
+    -fx-border-color: rgba(108, 99, 255, 0.7);
+}
+
 #contentArea {
     -fx-background-color: #0F0F23;
 }
 
-/* ── Card Panels ───────────────────────────────────────────── */
 .view-card {
     -fx-background-color: -color-surface-card;
     -fx-background-radius: 14;
@@ -119,13 +125,11 @@
     -fx-border-width: 0 0 1 0;
 }
 
-/* ── Image Viewport ────────────────────────────────────────── */
 .image-viewport {
     -fx-background-color: #0D0D1A;
     -fx-background-radius: 10;
 }
 
-/* ── Status / Footer Bar ───────────────────────────────────── */
 #footerBar {
     -fx-background-color: -color-surface;
     -fx-padding: 10 28 10 28;
@@ -138,13 +142,17 @@
     -fx-text-fill: -color-text-secondary;
 }
 
+.meta-label {
+    -fx-font-size: 11px;
+    -fx-text-fill: -color-text-muted;
+}
+
 #engineLabel {
     -fx-font-size: 11px;
     -fx-font-style: italic;
     -fx-text-fill: -color-text-muted;
 }
 
-/* ── Dot Indicator (status dot) ────────────────────────────── */
 .status-dot {
     -fx-background-color: #4ADE80;
     -fx-background-radius: 50;
@@ -154,7 +162,6 @@
     -fx-max-height: 6;
 }
 
-/* ── Scrollbar Styling (subtle) ────────────────────────────── */
 .scroll-bar:vertical .thumb,
 .scroll-bar:horizontal .thumb {
     -fx-background-color: rgba(255, 255, 255, 0.08);

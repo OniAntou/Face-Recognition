@@ -2,15 +2,16 @@
 
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Button?>
+<?import javafx.scene.control.CheckBox?>
 <?import javafx.scene.control.ComboBox?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.Separator?>
 <?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.HBox?>
-<?import javafx.scene.layout.VBox?>
 <?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
 
 <BorderPane prefHeight="720.0" prefWidth="1120.0"
             style="-fx-background-color: #0F0F23;"
@@ -19,38 +20,49 @@
             xmlns:fx="http://javafx.com/fxml/1"
             fx:controller="com.example.facedetection.controller.ViewController">
 
-    <!-- ═══════════════════════ HEADER ═══════════════════════ -->
     <top>
-        <HBox id="headerBar" alignment="CENTER_LEFT" spacing="16">
-            <!-- Brand / Title -->
-            <VBox alignment="CENTER_LEFT">
-                <Label id="appTitle" text="Face Recognition" />
-                <Label id="appSubtitle" text="Real-time Detection &amp; Analysis" />
-            </VBox>
+        <VBox spacing="12" id="headerBar">
+            <HBox alignment="CENTER_LEFT" spacing="16">
+                <VBox alignment="CENTER_LEFT">
+                    <Label id="appTitle" text="Face Recognition" />
+                    <Label id="appSubtitle" text="Real-time Detection and Analysis" />
+                </VBox>
 
-            <Region HBox.hgrow="ALWAYS" />
+                <Region HBox.hgrow="ALWAYS" />
 
                 <ComboBox fx:id="cameraSelector" prefHeight="38.0" prefWidth="180.0"
                           promptText="Select Camera" styleClass="combo-box" />
                 <Button fx:id="cameraButton" onAction="#toggleCamera"
                         prefHeight="38.0" prefWidth="150.0"
-                        text="⏺  Start Camera"
+                        text="Start Camera"
                         styleClass="btn-primary" />
                 <Button fx:id="insertImageButton" onAction="#selectImage"
                         prefHeight="38.0" prefWidth="150.0"
-                        text="📁  Upload Image"
+                        text="Upload Image"
                         styleClass="btn-secondary" />
-        </HBox>
+            </HBox>
+
+            <HBox alignment="CENTER_LEFT" spacing="18">
+                <CheckBox fx:id="adaptiveExposureCheckBox"
+                          onAction="#handleAdaptiveExposureToggle"
+                          selected="true"
+                          styleClass="toggle-chip"
+                          text="Adaptive Exposure" />
+                <CheckBox fx:id="brightLightModeCheckBox"
+                          onAction="#handleBrightLightModeToggle"
+                          selected="true"
+                          styleClass="toggle-chip"
+                          text="Bright-Light Mode" />
+            </HBox>
+        </VBox>
     </top>
 
-    <!-- ═══════════════════════ CONTENT ══════════════════════ -->
     <center>
         <HBox id="contentArea" spacing="24" alignment="CENTER">
             <padding>
                 <Insets bottom="28.0" left="28.0" right="28.0" top="28.0" />
             </padding>
 
-            <!-- Source Panel -->
             <VBox fx:id="sourceCard" HBox.hgrow="ALWAYS" alignment="TOP_CENTER"
                   spacing="12" styleClass="view-card">
                 <HBox alignment="CENTER_LEFT" spacing="8">
@@ -67,7 +79,6 @@
                 </padding>
             </VBox>
 
-            <!-- Result Panel -->
             <VBox HBox.hgrow="ALWAYS" alignment="TOP_CENTER"
                   spacing="12" styleClass="view-card">
                 <HBox alignment="CENTER_LEFT" spacing="8">
@@ -86,12 +97,13 @@
         </HBox>
     </center>
 
-    <!-- ═══════════════════════ FOOTER ═══════════════════════ -->
     <bottom>
         <HBox id="footerBar" alignment="CENTER_LEFT" spacing="16">
             <Label fx:id="statusLabel" id="statusLabel" text="Ready" />
+            <Label fx:id="fpsLabel" styleClass="meta-label" text="FPS: --" />
+            <Label fx:id="exposureStatusLabel" styleClass="meta-label" text="Exposure: Ready" />
             <Region HBox.hgrow="ALWAYS" />
-            <Label id="engineLabel" text="DNN · ResNet-10 · OpenCV" />
+            <Label fx:id="engineLabel" id="engineLabel" text="Engine: Idle" />
         </HBox>
     </bottom>
 

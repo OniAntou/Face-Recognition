@@ -44,10 +44,13 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 ; All files from the jpackage app-image (includes EXE and JRE)
 Source: "..\target\dist\FaceRecognition\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 ; AI Models only (exclude unused haarcascade file to save ~1MB)
+Source: "..\data\yolov8n-face.onnx"; DestDir: "{app}\app\data"; Flags: ignoreversion
 Source: "..\data\deploy.prototxt"; DestDir: "{app}\app\data"; Flags: ignoreversion
 Source: "..\data\res10_300x300_ssd_iter_140000.caffemodel"; DestDir: "{app}\app\data"; Flags: ignoreversion
 Source: "..\data\gender_deploy.prototxt"; DestDir: "{app}\app\data"; Flags: ignoreversion
 Source: "..\data\gender_net.caffemodel"; DestDir: "{app}\app\data"; Flags: ignoreversion
+Source: "..\data\haarcascade_frontalface_default.xml"; DestDir: "{app}\app\data"; Flags: ignoreversion
+
 
 [Icons]
 Name: "{group}\Face Recognition"; Filename: "{app}\FaceRecognition.exe"
