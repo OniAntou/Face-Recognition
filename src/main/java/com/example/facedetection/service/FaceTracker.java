@@ -203,9 +203,18 @@ public class FaceTracker implements AutoCloseable {
             return;
         }
 
-        Mat newTemplate = new Mat(gray, templateRect).clone();
-        track.templateGray.release();
-        track.templateGray = newTemplate;
+        Mat newTemplate = null;
+        try {
+            newTemplate = new Mat(gray, templateRect).clone();
+            track.templateGray.release();
+            track.templateGray = newTemplate;
+        } catch (Exception e) {
+            // Ensure cleanup on exception
+            if (newTemplate != null) {
+                newTemplate.release();
+            }
+            throw e;
+        }
     }
 
     private void pruneLostTracks() {

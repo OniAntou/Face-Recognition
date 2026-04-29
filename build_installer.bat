@@ -3,12 +3,27 @@ echo ==========================================
 echo   FACE RECOGNITION - INSTALLER BUILDER
 echo ==========================================
 echo.
+
+REM Ensure we're in the correct directory
+cd /d "%~dp0"
+
 echo Step 0: Ensuring application is closed and cleaning up...
 taskkill /F /IM FaceRecognition.exe /T >nul 2>&1
 if exist "target" rd /s /q "target"
 if exist "releases\FaceRecognition_Setup.exe" del "releases\FaceRecognition_Setup.exe"
 
 echo Step 1: Building project with Maven...
+echo Current directory: %CD%
+
+REM Check if pom.xml exists
+if not exist "pom.xml" (
+    echo.
+    echo ERROR: pom.xml not found in current directory!
+    echo Please run this script from the Face-Recognition project root.
+    pause
+    exit /b 1
+)
+
 set "JAVA_HOME=C:\Users\USER\.jdk\jdk-25"
 set "PATH=%JAVA_HOME%\bin;%PATH%"
 call mvn clean package -q -DskipTests

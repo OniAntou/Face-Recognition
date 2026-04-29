@@ -1,5 +1,6 @@
 package com.example.facedetection.service;
 
+import com.example.facedetection.util.MatUtils;
 import org.opencv.core.Core;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfPoint2f;
@@ -106,7 +107,7 @@ public class FaceDetectorService {
         try {
             face = extractAlignedFace(image, landmarks);
             if (face == null || face.empty()) {
-                safeRelease(face);
+                MatUtils.safeRelease(face);
                 face = extractDefaultGenderCrop(image, faceRect);
             }
 
@@ -138,9 +139,9 @@ public class FaceDetectorService {
             logger.error("Error predicting gender", e);
             return new String[]{"Unknown", ""};
         } finally {
-            safeRelease(genderPreds);
-            safeRelease(blob);
-            safeRelease(face);
+            MatUtils.safeRelease(genderPreds);
+            MatUtils.safeRelease(blob);
+            MatUtils.safeRelease(face);
         }
     }
 
@@ -251,18 +252,17 @@ public class FaceDetectorService {
             logger.debug("Found {} potential faces", faceList.size());
             return faceList.toArray(new Rect[0]);
         } finally {
-            safeRelease(detections);
-            safeRelease(blob);
+            MatUtils.safeRelease(detections);
+            MatUtils.safeRelease(blob);
         }
     }
 
-    private static void safeRelease(Mat mat) {
-        if (mat != null) {
-            try {
-                mat.release();
-            } catch (Exception ignored) {
-                // Ignore already released mats.
-            }
-        }
+    /**
+     * Releases resources. OpenCV Net instances are managed by garbage collection.
+     */
+    public void close() {
+        // OpenCV Net instances don't require explicit cleanup
+        // This method exists for API consistency
     }
+
 }

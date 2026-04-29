@@ -1,7 +1,9 @@
 package com.example.facedetection;
 
 import atlantafx.base.theme.PrimerDark;
+import com.example.facedetection.config.AppConfig;
 import com.example.facedetection.controller.ViewController;
+import com.example.facedetection.service.PreferencesService;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.fxml.FXMLLoader;
@@ -12,11 +14,17 @@ import nu.pattern.OpenCV;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Optional;
+
 public class MainApp extends Application {
 
     private static final Logger logger = LoggerFactory.getLogger(MainApp.class);
+    private static final double DEFAULT_WIDTH = 1120;
+    private static final double DEFAULT_HEIGHT = 720;
+
     private static javafx.application.HostServices hostServicesInstance;
     private ViewController controller;
+    private PreferencesService preferencesService;
     private final java.util.concurrent.atomic.AtomicBoolean isShuttingDown = new java.util.concurrent.atomic.AtomicBoolean(false);
 
     @Override
@@ -37,9 +45,12 @@ public class MainApp extends Application {
     @Override
     public void start(Stage stage) {
         try {
+            // Initialize preferences
+            preferencesService = new PreferencesService();
+
             // Set theme
             Application.setUserAgentStylesheet(new PrimerDark().getUserAgentStylesheet());
-            
+
             // Store HostServices for later use
             hostServicesInstance = getHostServices();
 
@@ -61,13 +72,46 @@ public class MainApp extends Application {
             stage.setTitle("Face Recognition");
             stage.setMinWidth(800);
             stage.setMinHeight(500);
+
+            // Restore window size from preferences
+            Optional<double[]> savedSize = preferencesService.getWindowSize();
+            if (savedSize.isPresent()) {
+                double[] size = savedSize.get();
+                stage.setWidth(size[0]);
+                stage.setHeight(size[1]);
+            } else {
+                stage.setWidth(DEFAULT_WIDTH);
+                stage.setHeight(DEFAULT_HEIGHT);
+            }
+
+            // Restore maximized state
+            if (preferencesService.isWindowMaximized(false)) {
+                stage.setMaximized(true);
+            }
+
             stage.setScene(scene);
 
-            // Ensure the app exits when the window is closed
+            // Save window state on close
             stage.setOnCloseRequest(event -> {
                 event.consume();
-                stage.hide(); // Hide immediately to give feedback to user
+                saveWindowState(stage);
+                stage.hide();
                 performShutdown();
+            });
+
+            // Save window state when resized
+            stage.widthProperty().addListener((obs, oldVal, newVal) -> {
+                if (!stage.isMaximized()) {
+                    preferencesService.setWindowSize(newVal.doubleValue(), stage.getHeight());
+                }
+            });
+            stage.heightProperty().addListener((obs, oldVal, newVal) -> {
+                if (!stage.isMaximized()) {
+                    preferencesService.setWindowSize(stage.getWidth(), newVal.doubleValue());
+                }
+            });
+            stage.maximizedProperty().addListener((obs, oldVal, newVal) -> {
+                preferencesService.setWindowMaximized(newVal);
             });
 
             stage.show();
@@ -75,6 +119,12 @@ public class MainApp extends Application {
         } catch (Throwable e) {
             logger.error("Fatal startup error", e);
             showFatalError(e);
+        }
+    }
+
+    private void saveWindowState(Stage stage) {
+        if (preferencesService != null && !stage.isMaximized()) {
+            preferencesService.setWindowSize(stage.getWidth(), stage.getHeight());
         }
     }
 

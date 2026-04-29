@@ -1,7 +1,9 @@
 package com.example.facedetection.service;
 
+import com.example.facedetection.config.AppConfig;
 import nu.pattern.OpenCV;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
@@ -14,16 +16,23 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class VisionPreprocessorTest {
 
+    private VisionPreprocessor preprocessor;
+
     @BeforeAll
     static void setup() {
         OpenCV.loadShared();
+    }
+
+    @BeforeEach
+    void init() {
+        preprocessor = new VisionPreprocessor(AppConfig.getInstance());
     }
 
     @Test
     void detectsOverexposedFrames() {
         Mat bright = new Mat(120, 120, CvType.CV_8UC3, new Scalar(255, 255, 255));
         try {
-            assertTrue(VisionPreprocessor.isLikelyOverexposed(bright));
+            assertTrue(preprocessor.isLikelyOverexposed(bright));
         } finally {
             bright.release();
         }
@@ -33,8 +42,8 @@ class VisionPreprocessorTest {
     void ignoresNormallyLitFrames() {
         Mat normal = new Mat(120, 120, CvType.CV_8UC3, new Scalar(120, 120, 120));
         try {
-            assertFalse(VisionPreprocessor.isLikelyOverexposed(normal));
-            assertEquals(120.0, VisionPreprocessor.estimateBrightness(normal), 1.0);
+            assertFalse(preprocessor.isLikelyOverexposed(normal));
+            assertEquals(120.0, preprocessor.estimateBrightness(normal), 1.0);
         } finally {
             normal.release();
         }
@@ -43,7 +52,7 @@ class VisionPreprocessorTest {
     @Test
     void preservesImageDimensionsWhenEnhancing() {
         Mat bright = new Mat(90, 160, CvType.CV_8UC3, new Scalar(250, 250, 250));
-        Mat enhanced = VisionPreprocessor.prepareForFaceDetection(bright);
+        Mat enhanced = preprocessor.prepareForFaceDetection(bright);
         try {
             assertNotNull(enhanced);
             assertFalse(enhanced.empty());

@@ -1,5 +1,6 @@
 package com.example.facedetection.service;
 
+import com.example.facedetection.config.AppConfig;
 import org.opencv.core.Core;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
@@ -13,18 +14,21 @@ import java.util.List;
 /**
  * Shared preprocessing utilities for face detection in challenging lighting.
  * The goal is to preserve facial detail when highlights are clipped or uneven.
+ * Uses configuration from AppConfig instead of hard-coded constants.
  */
 public final class VisionPreprocessor {
 
-    private static final double BRIGHTNESS_THRESHOLD = 190.0;
-    private static final double HIGHLIGHT_RATIO_THRESHOLD = 0.16;
-    private static final double AGGRESSIVE_GAMMA = 1.35;
-    private static final double MILD_GAMMA = 1.10;
+    private final AppConfig config;
 
-    private VisionPreprocessor() {
+    public VisionPreprocessor(AppConfig config) {
+        this.config = config;
     }
 
-    public static double estimateBrightness(Mat source) {
+    public VisionPreprocessor() {
+        this(AppConfig.getInstance());
+    }
+
+    public double estimateBrightness(Mat source) {
         if (source == null || source.empty()) {
             return 0.0;
         }
@@ -42,7 +46,7 @@ public final class VisionPreprocessor {
         }
     }
 
-    public static boolean isLikelyOverexposed(Mat source) {
+    public boolean isLikelyOverexposed(Mat source) {
         if (source == null || source.empty()) {
             return false;
         }
@@ -56,7 +60,7 @@ public final class VisionPreprocessor {
             double meanBrightness = Core.mean(gray).val[0];
             Imgproc.threshold(gray, highlightMask, 245, 255, Imgproc.THRESH_BINARY);
             double highlightRatio = Core.countNonZero(highlightMask) / (double) (gray.rows() * gray.cols());
-            return meanBrightness >= BRIGHTNESS_THRESHOLD || highlightRatio >= HIGHLIGHT_RATIO_THRESHOLD;
+            return meanBrightness >= config.brightnessThreshold || highlightRatio >= config.highlightRatioThreshold;
         } finally {
             gray.release();
             highlightMask.release();
@@ -66,7 +70,7 @@ public final class VisionPreprocessor {
         }
     }
 
-    public static Mat prepareForFaceDetection(Mat source) {
+    public Mat prepareForFaceDetection(Mat source) {
         if (source == null || source.empty()) {
             return new Mat();
         }
@@ -87,7 +91,7 @@ public final class VisionPreprocessor {
             clahe.apply(lightness, enhancedLightness);
             clahe.collectGarbage();
 
-            applyGamma(enhancedLightness, enhancedLightness, overexposed ? AGGRESSIVE_GAMMA : MILD_GAMMA);
+            applyGamma(enhancedLightness, enhancedLightness, overexposed ? config.aggressiveGamma : config.mildGamma);
 
             Mat oldLightness = labChannels.set(0, enhancedLightness);
             if (oldLightness != null && oldLightness != enhancedLightness) {
@@ -116,7 +120,7 @@ public final class VisionPreprocessor {
         }
     }
 
-    private static Mat ensureBgr(Mat source) {
+    private Mat ensureBgr(Mat source) {
         if (source.channels() == 3) {
             return source;
         }
@@ -132,7 +136,7 @@ public final class VisionPreprocessor {
         return converted;
     }
 
-    private static void applyGamma(Mat source, Mat destination, double gamma) {
+    private void applyGamma(Mat source, Mat destination, double gamma) {
         Mat lut = new Mat(1, 256, CvType.CV_8UC1);
         try {
             byte[] table = new byte[256];
