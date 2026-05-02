@@ -57,6 +57,7 @@ public class ViewController {
     @FXML private Label exposureStatusLabel;
     @FXML private CheckBox adaptiveExposureCheckBox;
     @FXML private CheckBox brightLightModeCheckBox;
+    @FXML private CheckBox genderRecognitionCheckBox;
 
     // Services
     private FaceDetector yoloDetector;
@@ -106,6 +107,7 @@ public class ViewController {
 
             // Initialize services
             cameraManager = new CameraManager();
+            cameraManager.setMatPool(matPool);
 
             // Build list of available detectors
             List<FaceDetector> detectors = new ArrayList<>();
@@ -122,6 +124,7 @@ public class ViewController {
             uiManager = new UIManager(originalImageView, processedImageView, sourceViewport, resultViewport,
                     sourceCard, cameraButton, cameraSelector, statusLabel, engineLabel, fpsLabel,
                     exposureStatusLabel, adaptiveExposureCheckBox, brightLightModeCheckBox,
+                    genderRecognitionCheckBox,
                     cameraManager, updateService);
 
             // Restore preferences
@@ -143,65 +146,70 @@ public class ViewController {
     }
 
     private void initializeModels() {
-        String faceModelFile = "res10_300x300_ssd_iter_140000.caffemodel";
-        String faceConfigFile = "deploy.prototxt";
-        String genderModelFile = "gender_net.caffemodel";
-        String genderConfigFile = "gender_deploy.prototxt";
-        String yoloModelFile = "yolov8n-face.onnx";
-
         File dataDir = new File("data");
         if (!dataDir.exists()) {
             dataDir = new File("app" + File.separator + "data");
         }
 
+        File faceDir = new File(dataDir, "models" + File.separator + "face");
+        File genderDir = new File(dataDir, "models" + File.separator + "gender");
+        File haarDir = new File(dataDir, "haarcascade");
+
         List<FaceDetector> detectors = new ArrayList<>();
 
         // Initialize YOLO if available
-        File yoloFile = new File(dataDir, yoloModelFile);
+        File yoloFile = new File(faceDir, "yolov8n-face.onnx");
         if (yoloFile.exists() && PathValidator.isValidModelPath(yoloFile.getAbsolutePath())) {
             try {
                 yoloDetector = new YoloFaceDetector(yoloFile.getAbsolutePath(),
                         config.yoloConfidenceThreshold, config.yoloNmsThreshold);
                 detectors.add(yoloDetector);
-                logger.info("YOLO detector initialized");
+                logger.info("YOLO detector initialized from {}", yoloFile.getPath());
             } catch (Exception e) {
                 logger.error("Failed to initialize YOLO: {}", e.getMessage());
             }
         }
 
         // Initialize SSD
-        File faceModel = new File(dataDir, faceModelFile);
-        File faceConfig = new File(dataDir, faceConfigFile);
+        File faceModel = new File(faceDir, "res10_300x300_ssd_iter_140000.caffemodel");
+        File faceConfig = new File(faceDir, "deploy.prototxt");
 
-        if (!PathValidator.isValidModelPath(faceModel.getAbsolutePath()) ||
-            !PathValidator.isValidModelPath(faceConfig.getAbsolutePath())) {
-            throw new RuntimeException("Invalid face model paths");
+        if (faceModel.exists() && faceConfig.exists()) {
+            ssdDetector = new SsdFaceDetector(
+                    faceModel.getAbsolutePath(),
+                    faceConfig.getAbsolutePath(),
+                    config.ssdConfidenceThreshold);
+            detectors.add(ssdDetector);
+            logger.info("SSD detector initialized");
         }
 
-        ssdDetector = new SsdFaceDetector(
-                faceModel.getAbsolutePath(),
-                faceConfig.getAbsolutePath(),
-                config.ssdConfidenceThreshold);
-        detectors.add(ssdDetector);
-
         // Keep FaceDetectorService for gender prediction
-        File genderModel = new File(dataDir, genderModelFile);
-        File genderConfig = new File(dataDir, genderConfigFile);
-        faceDetectorService = new FaceDetectorService(
-                faceModel.getAbsolutePath(),
-                faceConfig.getAbsolutePath(),
-                genderModel.getAbsolutePath(),
-                genderConfig.getAbsolutePath(),
-                config.ssdConfidenceThreshold);
+        File genderModel = new File(genderDir, "gender_net.caffemodel");
+        File genderConfig = new File(genderDir, "gender_deploy.prototxt");
+
+        if (faceModel.exists() && faceConfig.exists() && genderModel.exists() && genderConfig.exists()) {
+            faceDetectorService = new FaceDetectorService(
+                    faceModel.getAbsolutePath(),
+                    faceConfig.getAbsolutePath(),
+                    genderModel.getAbsolutePath(),
+                    genderConfig.getAbsolutePath(),
+                    config.ssdConfidenceThreshold);
+            logger.info("Gender recognition service initialized");
+        }
 
         // Initialize Haar cascade if available
-        File haarFile = new File(dataDir, "haarcascade_frontalface_default.xml");
+        File haarFile = new File(haarDir, "haarcascade_frontalface_default.xml");
         if (haarFile.exists() && PathValidator.isValidModelPath(haarFile.getAbsolutePath())) {
             haarDetector = new HaarFaceDetector(haarFile.getAbsolutePath());
             detectors.add(haarDetector);
+            logger.info("Haar cascade detector initialized");
         }
 
-        logger.info("AI models initialized successfully ({} detectors)", detectors.size());
+        if (detectors.isEmpty()) {
+            logger.warn("No face detectors were initialized. Application may not function correctly.");
+        } else {
+            logger.info("AI models initialized successfully ({} detectors)", detectors.size());
+        }
     }
 
     private void restorePreferences() {
@@ -217,6 +225,11 @@ public class ViewController {
         }
         if (detectionPipeline != null) {
             detectionPipeline.setBrightLightMode(brightLightMode);
+        }
+
+        boolean genderRecognition = preferencesService.isGenderRecognitionEnabled(false);
+        if (genderRecognitionCheckBox != null) {
+            genderRecognitionCheckBox.setSelected(genderRecognition);
         }
 
         // Initialize labels
@@ -283,6 +296,12 @@ public class ViewController {
         }
     }
 
+    @FXML
+    private void handleGenderRecognitionToggle() {
+        boolean enabled = isGenderRecognitionEnabled();
+        preferencesService.setGenderRecognitionEnabled(enabled);
+    }
+
     private void startCamera() {
         // Get selected camera index
         int cameraIndex = uiManager.getSelectedCameraIndex();
@@ -327,21 +346,35 @@ public class ViewController {
 
     private void onFrameCaptured(Mat frame) {
         if (!processing.compareAndSet(false, true)) {
-            frame.release();
+            if (matPool != null) {
+                matPool.returnMat(frame);
+            } else {
+                frame.release();
+            }
             return;
         }
 
         long currentFrame = frameCounter.incrementAndGet();
 
-        // Run detection pipeline asynchronously using FrameProcessor
-        Mat frameCopy = frame.clone();
-        frame.release();
-
+        // The frame passed from CameraManager is already a clone/safe copy.
+        // We can pass it directly to the processor.
         CompletableFuture.supplyAsync(() -> {
-            FrameProcessor.FrameResult result = frameProcessor.process(
-                    frameCopy, currentFrame, uiManager.isBrightLightModeEnabled());
-            double fps = fpsCalculator.update();
-            return new FrameUIResult(result, fps, cameraManager.getExposureStatus());
+            try {
+                FrameProcessor.FrameResult result = frameProcessor.process(
+                        frame, 
+                        currentFrame, 
+                        brightLightModeCheckBox.isSelected(),
+                        genderRecognitionCheckBox.isSelected());
+                double fps = fpsCalculator.update();
+                return new FrameUIResult(result, fps, cameraManager.getExposureStatus());
+            } finally {
+                // Important: Return the frame to pool instead of releasing
+                if (matPool != null) {
+                    matPool.returnMat(frame);
+                } else {
+                    frame.release();
+                }
+            }
         }, aiExecutor)
                 .thenAcceptAsync(this::updateUI, Platform::runLater)
                 .whenComplete((result, error) -> {
@@ -383,7 +416,10 @@ public class ViewController {
 
             // Process image using FrameProcessor
             FrameProcessor.FrameResult result = frameProcessor.process(
-                    image, 1, uiManager.isBrightLightModeEnabled());
+                    image, 
+                    1, 
+                    isBrightLightModeEnabled(),
+                    isGenderRecognitionEnabled());
 
             // Update UI via UIManager
             uiManager.updateStaticImage(result.originalImage(), result.processedImage(),
@@ -495,5 +531,9 @@ public class ViewController {
 
     private boolean isBrightLightModeEnabled() {
         return brightLightModeCheckBox == null || brightLightModeCheckBox.isSelected();
+    }
+
+    private boolean isGenderRecognitionEnabled() {
+        return genderRecognitionCheckBox == null || genderRecognitionCheckBox.isSelected();
     }
 }

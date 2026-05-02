@@ -57,15 +57,16 @@ public class FrameProcessor implements AutoCloseable {
      * @param frame the input frame
      * @param currentFrame frame counter
      * @param isBrightLightMode whether bright light mode is enabled
+     * @param isGenderRecognitionEnabled whether gender recognition is enabled
      * @return processed frame result with image and metadata
      */
-    public FrameResult process(Mat frame, long currentFrame, boolean isBrightLightMode) {
+    public FrameResult process(Mat frame, long currentFrame, boolean isBrightLightMode, boolean isGenderRecognitionEnabled) {
         Mat displayFrame = null;
         Mat normalizedFrame = null;
         Mat processedFrame = null;
 
         try {
-            // Prepare display frame
+            // Prepare display frame from pool
             displayFrame = prepareDisplayFrame(frame);
 
             // Check for bright scene
@@ -75,7 +76,9 @@ public class FrameProcessor implements AutoCloseable {
             if (isBrightLightMode && isBrightScene) {
                 normalizedFrame = visionPreprocessor.prepareForFaceDetection(displayFrame);
             } else {
-                normalizedFrame = displayFrame.clone();
+                // Borrow from pool instead of cloning
+                normalizedFrame = matPool.borrowByteMat();
+                displayFrame.copyTo(normalizedFrame);
             }
 
             // Run detection pipeline
@@ -83,8 +86,9 @@ public class FrameProcessor implements AutoCloseable {
                     displayFrame, normalizedFrame, currentFrame, isBrightScene);
 
             // Create output frame with annotations
-            processedFrame = displayFrame.clone();
-            drawAnnotations(processedFrame, normalizedFrame, detectionResult.faces(), currentFrame);
+            processedFrame = matPool.borrowByteMat();
+            displayFrame.copyTo(processedFrame);
+            drawAnnotations(processedFrame, normalizedFrame, detectionResult.faces(), currentFrame, isGenderRecognitionEnabled);
 
             // Build status text
             String statusText = detectionResult.faces().size() + " face" +
@@ -99,9 +103,9 @@ public class FrameProcessor implements AutoCloseable {
             );
 
         } finally {
-            MatUtils.safeRelease(displayFrame);
-            MatUtils.safeRelease(normalizedFrame);
-            MatUtils.safeRelease(processedFrame);
+            matPool.returnMat(displayFrame);
+            matPool.returnMat(normalizedFrame);
+            matPool.returnMat(processedFrame);
         }
     }
 
@@ -145,7 +149,7 @@ public class FrameProcessor implements AutoCloseable {
     }
 
     private void drawAnnotations(Mat outputFrame, Mat analysisFrame,
-                                   List<TrackedFace> faces, long currentFrame) {
+                                   List<TrackedFace> faces, long currentFrame, boolean isGenderRecognitionEnabled) {
         Set<Integer> activeIds = ConcurrentHashMap.newKeySet();
 
         for (TrackedFace face : faces) {
@@ -157,7 +161,7 @@ public class FrameProcessor implements AutoCloseable {
                     new org.opencv.core.Scalar(0, 255, 0), 2);
 
             // Determine if gender prediction needed
-            if (shouldPredictGender(face, currentFrame, rect)) {
+            if (isGenderRecognitionEnabled && shouldPredictGender(face, currentFrame, rect)) {
                 String[] result = faceDetectorService.predictGender(
                         analysisFrame, rect, face.landmarksCopy());
                 genderCache.put(face.id(), result);
@@ -165,14 +169,16 @@ public class FrameProcessor implements AutoCloseable {
                 lastGenderPredictionBox.put(face.id(), new Rect(rect.x, rect.y, rect.width, rect.height));
             }
 
-            // Draw gender label
-            String[] genderInfo = genderCache.get(face.id());
-            if (genderInfo != null) {
-                String label = genderInfo[0] + " " + genderInfo[1];
-                org.opencv.imgproc.Imgproc.putText(outputFrame, label,
-                        new org.opencv.core.Point(rect.x, rect.y - 10),
-                        org.opencv.imgproc.Imgproc.FONT_HERSHEY_SIMPLEX, 0.6,
-                        new org.opencv.core.Scalar(0, 255, 255), 2);
+            // Draw gender label if enabled
+            if (isGenderRecognitionEnabled) {
+                String[] genderInfo = genderCache.get(face.id());
+                if (genderInfo != null) {
+                    String label = genderInfo[0] + " " + genderInfo[1];
+                    org.opencv.imgproc.Imgproc.putText(outputFrame, label,
+                            new org.opencv.core.Point(rect.x, rect.y - 10),
+                            org.opencv.imgproc.Imgproc.FONT_HERSHEY_SIMPLEX, 0.6,
+                            new org.opencv.core.Scalar(0, 255, 255), 2);
+                }
             }
         }
 
@@ -202,20 +208,7 @@ public class FrameProcessor implements AutoCloseable {
     }
 
     private Image matToImage(Mat frame) {
-        if (frame == null || frame.empty()) {
-            return null;
-        }
-
-        MatOfByte encodingBuffer = new MatOfByte();
-        try {
-            Imgcodecs.imencode("." + config.imageEncodingFormat, frame, encodingBuffer);
-            return new Image(new ByteArrayInputStream(encodingBuffer.toArray()));
-        } catch (Exception e) {
-            logger.error("Error converting Mat to Image", e);
-            return null;
-        } finally {
-            encodingBuffer.release();
-        }
+        return MatUtils.matToImageDirect(frame);
     }
 
     @Override

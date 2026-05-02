@@ -58,7 +58,7 @@ public class DetectionPipeline implements AutoCloseable {
         this.yoloCooldownFramesRemaining = 0;
         this.lastDetectionFrame = Long.MIN_VALUE / 4;
         this.lastDetectorLabel = "Idle";
-        this.brightLightMode = true;
+        this.brightLightMode = false;
     }
 
     /**

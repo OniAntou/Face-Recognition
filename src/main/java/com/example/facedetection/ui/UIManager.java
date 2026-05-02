@@ -37,6 +37,7 @@ public class UIManager {
     private final Label exposureStatusLabel;
     private final CheckBox adaptiveExposureCheckBox;
     private final CheckBox brightLightModeCheckBox;
+    private final CheckBox genderRecognitionCheckBox;
 
     // Services
     private final CameraManager cameraManager;
@@ -48,6 +49,7 @@ public class UIManager {
                      Label statusLabel, Label engineLabel, Label fpsLabel,
                      Label exposureStatusLabel, CheckBox adaptiveExposureCheckBox,
                      CheckBox brightLightModeCheckBox,
+                     CheckBox genderRecognitionCheckBox,
                      CameraManager cameraManager, UpdateService updateService) {
         this.originalImageView = originalImageView;
         this.processedImageView = processedImageView;
@@ -62,6 +64,7 @@ public class UIManager {
         this.exposureStatusLabel = exposureStatusLabel;
         this.adaptiveExposureCheckBox = adaptiveExposureCheckBox;
         this.brightLightModeCheckBox = brightLightModeCheckBox;
+        this.genderRecognitionCheckBox = genderRecognitionCheckBox;
         this.cameraManager = cameraManager;
         this.updateService = updateService;
 
@@ -267,6 +270,10 @@ public class UIManager {
 
     public boolean isBrightLightModeEnabled() {
         return brightLightModeCheckBox == null || brightLightModeCheckBox.isSelected();
+    }
+
+    public boolean isGenderRecognitionEnabled() {
+        return genderRecognitionCheckBox == null || genderRecognitionCheckBox.isSelected();
     }
 
     public CheckBox getAdaptiveExposureCheckBox() {

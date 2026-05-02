@@ -69,7 +69,7 @@ class PathValidatorTest {
         assertEquals("image_file.jpg", PathValidator.sanitizeFilename("image/file.jpg"));
         assertEquals("image_file.jpg", PathValidator.sanitizeFilename("image:file.jpg"));
         assertEquals("image_file.jpg", PathValidator.sanitizeFilename("image*file.jpg"));
-        assertEquals("image____file.jpg", PathValidator.sanitizeFilename("image<>?file.jpg"));
+        assertEquals("image___file.jpg", PathValidator.sanitizeFilename("image<>?file.jpg"));
     }
 
     @Test

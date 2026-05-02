@@ -4,6 +4,7 @@ import com.example.facedetection.config.AppConfig;
 import org.opencv.core.Mat;
 import org.opencv.videoio.VideoCapture;
 import org.opencv.videoio.Videoio;
+import com.example.facedetection.util.MatPool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,6 +36,7 @@ public class CameraManager implements AutoCloseable {
     private volatile boolean adaptiveExposureEnabled;
     private volatile boolean brightLightModeEnabled;
     private final VisionPreprocessor visionPreprocessor;
+    private MatPool matPool;
 
     public CameraManager() {
         this(AppConfig.getInstance());
@@ -50,6 +52,10 @@ public class CameraManager implements AutoCloseable {
         this.adaptiveExposureEnabled = true;
         this.brightLightModeEnabled = true;
         this.currentBrightness = 0.0;
+    }
+
+    public void setMatPool(MatPool matPool) {
+        this.matPool = matPool;
     }
 
     /**
@@ -155,9 +161,15 @@ public class CameraManager implements AutoCloseable {
         while (active.get() && !Thread.currentThread().isInterrupted()) {
             Mat frame = grabFrame();
             if (!frame.empty() && frameHandler != null) {
-                // Clone frame before passing to handler to avoid race condition
-                // Handler is async and may still be processing when we release
-                Mat frameCopy = frame.clone();
+                // Use MatPool to recycle frames if available, otherwise clone
+                Mat frameCopy;
+                if (matPool != null) {
+                    frameCopy = matPool.borrowByteMat();
+                    frame.copyTo(frameCopy);
+                } else {
+                    frameCopy = frame.clone();
+                }
+                
                 frameHandler.accept(frameCopy);
                 frame.release();
             } else {

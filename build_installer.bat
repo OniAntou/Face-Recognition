@@ -1,4 +1,5 @@
 @echo off
+setlocal enabledelayedexpansion
 echo ==========================================
 echo   FACE RECOGNITION - INSTALLER BUILDER
 echo ==========================================
@@ -35,17 +36,55 @@ if errorlevel 1 (
 )
 echo Maven build completed successfully.
 echo.
-echo Step 2: Creating App Image with jpackage...
+
+REM Verify data folder exists
+if not exist "data" (
+    echo ERROR: 'data' folder not found! AI models are required.
+    pause
+    exit /b 1
+)
+
+echo Step 2: Preparing clean input directory...
+REM Ensure dependency folder exists (created by maven-dependency-plugin in pom.xml)
+if not exist "target\dependency" (
+    echo ERROR: target\dependency not found! Ensure maven-dependency-plugin is configured.
+    pause
+    exit /b 1
+)
+
+if exist "target\libs" rd /s /q "target\libs"
+mkdir "target\libs"
+
+REM Copy dependencies and the main jar to a single flat folder for jpackage
+copy "target\dependency\*.jar" "target\libs\" /Y
+set "MAIN_JAR="
+for %%f in (target\opencv-demo-*.jar) do (
+    set "FILE_NAME=%%~nxf"
+    REM Skip sources, javadoc and test jars
+    echo !FILE_NAME! | findstr /i "sources javadoc tests" >nul
+    if errorlevel 1 (
+        set "MAIN_JAR=!FILE_NAME!"
+        copy "%%f" "target\libs\" /Y
+    )
+)
+
+if "!MAIN_JAR!"=="" (
+    echo ERROR: Main JAR not found in target!
+    pause
+    exit /b 1
+)
+
+echo Step 3: Creating App Image with jpackage...
 "%JAVA_HOME%\bin\jpackage.exe" ^
     --type app-image ^
     --name FaceRecognition ^
-    --input target ^
-    --main-jar opencv-demo-1.0-SNAPSHOT.jar ^
+    --input target\libs ^
+    --main-jar !MAIN_JAR! ^
     --main-class com.example.facedetection.Launcher ^
     --dest target/dist ^
     --vendor "Face Recognition" ^
-    --java-options "-XX:+UseG1GC -XX:MaxGCPauseMillis=10 -Xms64m -Xmx512m" ^
-    --jlink-options "--strip-debug --no-header-files --no-man-pages --compress zip-6"
+    --java-options "-XX:+UseSerialGC -Xms32m -Xmx320m -XX:+UseStringDeduplication" ^
+    --jlink-options "--strip-debug --no-header-files --no-man-pages --strip-native-commands --compress zip-9"
 if errorlevel 1 (
     echo.
     echo ERROR: jpackage failed! Please check the output above.
@@ -61,7 +100,7 @@ if exist "target\dist\FaceRecognition\app\haarcascade_frontalface_default.xml" (
     del "target\dist\FaceRecognition\app\haarcascade_frontalface_default.xml"
 )
 
-echo Step 3: Compiling Installer with Inno Setup...
+echo Step 4: Compiling Installer with Inno Setup...
 echo Searching for ISCC.exe...
 
 set "ISCC_PATH=%LocalAppData%\Programs\Inno Setup 6\ISCC.exe"

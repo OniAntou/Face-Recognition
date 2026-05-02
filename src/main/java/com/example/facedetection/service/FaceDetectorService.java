@@ -62,7 +62,7 @@ public class FaceDetectorService {
         logger.info("Face & Gender DNN Detectors loaded successfully.");
     }
 
-    public void enableHardwareAcceleration() {
+    private void enableHardwareAcceleration() {
         faceNet.setPreferableBackend(Dnn.DNN_BACKEND_OPENCV);
         faceNet.setPreferableTarget(Dnn.DNN_TARGET_CPU);
 

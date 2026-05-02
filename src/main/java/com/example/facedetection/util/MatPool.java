@@ -109,22 +109,32 @@ public class MatPool implements AutoCloseable {
      * @param mat the Mat to return
      */
     public void returnMat(Mat mat) {
-        if (mat == null || mat.empty()) {
+        if (mat == null || mat.nativeObj == 0) {
+            return;
+        }
+
+        if (mat.empty()) {
             safeRelease(mat);
             return;
         }
 
+        int type = mat.type();
         try {
-            int type = mat.type();
             if (type == CvType.CV_8UC3) {
                 byteMatPool.returnObject(mat);
+                return;
             } else if (type == CvType.CV_32F || type == CvType.CV_32FC1) {
                 floatMatPool.returnObject(mat);
-            } else {
-                genericPool.returnObject(mat);
+                return;
             }
-        } catch (IllegalStateException e) {
-            // Object not from this pool, just release it
+        } catch (IllegalStateException ignored) {
+            // Not from specific pool, try generic
+        }
+
+        try {
+            genericPool.returnObject(mat);
+        } catch (Exception e) {
+            // Not from any pool or pool closed
             safeRelease(mat);
         }
     }
@@ -135,7 +145,12 @@ public class MatPool implements AutoCloseable {
      * @param poolType the type hint for the pool
      */
     public void returnMat(Mat mat, PoolType poolType) {
-        if (mat == null) {
+        if (mat == null || mat.nativeObj == 0) {
+            return;
+        }
+
+        if (mat.empty()) {
+            safeRelease(mat);
             return;
         }
 
@@ -147,6 +162,13 @@ public class MatPool implements AutoCloseable {
                 default -> returnMat(mat); // Auto-detect
             }
         } catch (IllegalStateException e) {
+            // If it failed the specific pool, try generic as last resort
+            try {
+                genericPool.returnObject(mat);
+            } catch (Exception ex) {
+                safeRelease(mat);
+            }
+        } catch (Exception e) {
             safeRelease(mat);
         }
     }
@@ -204,11 +226,9 @@ public class MatPool implements AutoCloseable {
 
         @Override
         public void passivateObject(PooledObject<Mat> p) {
-            // Reset Mat state before returning to pool
-            Mat mat = p.getObject();
-            if (mat != null && !mat.empty()) {
-                safeRelease(mat);
-            }
+            // DO NOT release here. We want to keep the buffer.
+            // If we want to ensure it's not "dirty" we could clear it,
+            // but usually OpenCV ops overwrite the data anyway.
         }
     }
 
@@ -227,16 +247,19 @@ public class MatPool implements AutoCloseable {
         }
 
         @Override
+        public boolean validateObject(PooledObject<Mat> p) {
+            Mat mat = p.getObject();
+            return mat != null && mat.nativeObj != 0 && mat.type() == CvType.CV_8UC3;
+        }
+
+        @Override
         public void destroyObject(PooledObject<Mat> p) {
             safeRelease(p.getObject());
         }
 
         @Override
         public void passivateObject(PooledObject<Mat> p) {
-            Mat mat = p.getObject();
-            if (mat != null && !mat.empty()) {
-                safeRelease(mat);
-            }
+            // Keep buffer for reuse
         }
     }
 
@@ -255,16 +278,19 @@ public class MatPool implements AutoCloseable {
         }
 
         @Override
+        public boolean validateObject(PooledObject<Mat> p) {
+            Mat mat = p.getObject();
+            return mat != null && mat.nativeObj != 0 && (mat.type() == CvType.CV_32F || mat.type() == CvType.CV_32FC1);
+        }
+
+        @Override
         public void destroyObject(PooledObject<Mat> p) {
             safeRelease(p.getObject());
         }
 
         @Override
         public void passivateObject(PooledObject<Mat> p) {
-            Mat mat = p.getObject();
-            if (mat != null && !mat.empty()) {
-                safeRelease(mat);
-            }
+            // Keep buffer for reuse
         }
     }
 }

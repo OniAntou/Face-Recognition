@@ -22,6 +22,7 @@ public class PreferencesService {
     private static final String KEY_WINDOW_WIDTH = "window_width";
     private static final String KEY_WINDOW_HEIGHT = "window_height";
     private static final String KEY_WINDOW_MAXIMIZED = "window_maximized";
+    private static final String KEY_GENDER_RECOGNITION = "gender_recognition_enabled";
 
     private final Preferences prefs;
 
@@ -59,6 +60,15 @@ public class PreferencesService {
 
     public boolean isBrightLightModeEnabled(boolean defaultValue) {
         return prefs.getBoolean(KEY_BRIGHT_LIGHT_MODE, defaultValue);
+    }
+
+    public void setGenderRecognitionEnabled(boolean enabled) {
+        prefs.putBoolean(KEY_GENDER_RECOGNITION, enabled);
+        flush();
+    }
+
+    public boolean isGenderRecognitionEnabled(boolean defaultValue) {
+        return prefs.getBoolean(KEY_GENDER_RECOGNITION, defaultValue);
     }
 
     // Window state

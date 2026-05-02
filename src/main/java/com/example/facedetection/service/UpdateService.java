@@ -255,7 +255,7 @@ public class UpdateService {
             var codeSource = getClass().getProtectionDomain().getCodeSource();
             if (codeSource != null && codeSource.getLocation() != null) {
                 var res = codeSource.getLocation();
-                var manifestUrl = new java.net.URL("jar:" + res.toExternalForm() + "!/META-INF/MANIFEST.MF");
+                var manifestUrl = URI.create("jar:" + res.toExternalForm() + "!/META-INF/MANIFEST.MF").toURL();
 
                 try (var is = manifestUrl.openStream()) {
                     Manifest manifest = new Manifest(is);
