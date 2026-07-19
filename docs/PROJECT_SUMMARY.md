@@ -12,7 +12,7 @@
 - Updated ONNX Runtime from 1.17.1 to 1.20.0 and verified the bundled YOLO model opens and runs.
 - Repaired SSD/gender test fixtures and integration tests so they use the real nested model directories.
 - Injected configured detector/tracker thresholds and input statistics instead of duplicating them in code.
-- Made gender recognition safe when its model is unavailable.
+- Made gender recognition safe when its model is unavailable, added a 70% confidence gate, validated landmark alignment, reduced background in gender crops, refreshed predictions periodically, and stabilized labels with a rolling vote window.
 - Moved selected-image processing to the AI executor and stopped reading JavaFX controls from that executor.
 - Connected adaptive exposure to the camera capture loop and improved camera shutdown/error cleanup.
 - Corrected `MatPool` ownership and empty-matrix return behavior.
@@ -62,7 +62,7 @@ mvn clean test
 
 Result on 2026-07-19:
 
-- 75 tests executed.
+- 77 tests executed.
 - 0 failures and 0 errors.
 - 4 camera tests skipped because camera index 0 is unavailable on the verification machine.
 - The real bundled YOLO model initialized successfully with ONNX Runtime 1.20.0.

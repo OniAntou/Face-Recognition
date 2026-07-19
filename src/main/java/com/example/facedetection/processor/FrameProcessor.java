@@ -39,7 +39,6 @@ public class FrameProcessor implements AutoCloseable {
 
     // State
     private final Map<Integer, Long> lastGenderPredictionFrame = new ConcurrentHashMap<>();
-    private final Map<Integer, Rect> lastGenderPredictionBox = new ConcurrentHashMap<>();
 
     public FrameProcessor(AppConfig config, DetectionPipeline detectionPipeline,
                           FaceDetectorService faceDetectorService, MatPool matPool) {
@@ -116,7 +115,6 @@ public class FrameProcessor implements AutoCloseable {
         detectionPipeline.reset();
         genderCache.clear();
         lastGenderPredictionFrame.clear();
-        lastGenderPredictionBox.clear();
     }
 
     private Mat prepareDisplayFrame(Mat frame) {
@@ -162,12 +160,11 @@ public class FrameProcessor implements AutoCloseable {
 
             // Determine if gender prediction needed
             if (isGenderRecognitionEnabled && faceDetectorService != null
-                    && shouldPredictGender(face, currentFrame, rect)) {
+                    && shouldPredictGender(face, currentFrame)) {
                 String[] result = faceDetectorService.predictGender(
                         analysisFrame, rect, face.landmarksCopy());
                 genderCache.put(face.id(), result);
                 lastGenderPredictionFrame.put(face.id(), currentFrame);
-                lastGenderPredictionBox.put(face.id(), new Rect(rect.x, rect.y, rect.width, rect.height));
             }
 
             // Draw gender label if enabled
@@ -186,26 +183,14 @@ public class FrameProcessor implements AutoCloseable {
         // Prune old entries
         genderCache.retainAll(activeIds);
         lastGenderPredictionFrame.keySet().retainAll(activeIds);
-        lastGenderPredictionBox.keySet().retainAll(activeIds);
     }
 
-    private boolean shouldPredictGender(TrackedFace face, long currentFrame, Rect rect) {
+    private boolean shouldPredictGender(TrackedFace face, long currentFrame) {
         long lastPrediction = lastGenderPredictionFrame.getOrDefault(face.id(), Long.MIN_VALUE / 4);
-        Rect lastBox = lastGenderPredictionBox.get(face.id());
-
         boolean hasCache = genderCache.contains(face.id());
-        boolean boxChanged = lastBox == null || computeBoxChange(lastBox, rect) > config.boxChangeThreshold;
         boolean intervalPassed = (currentFrame - lastPrediction) >= config.genderPredictionInterval;
 
-        return !hasCache || (intervalPassed && boxChanged);
-    }
-
-    private double computeBoxChange(Rect oldBox, Rect newBox) {
-        double dw = Math.abs(oldBox.width - newBox.width) / (double) Math.max(1, oldBox.width);
-        double dh = Math.abs(oldBox.height - newBox.height) / (double) Math.max(1, oldBox.height);
-        double dx = Math.abs(oldBox.x - newBox.x) / (double) Math.max(1, oldBox.width);
-        double dy = Math.abs(oldBox.y - newBox.y) / (double) Math.max(1, oldBox.height);
-        return (dw + dh + dx + dy) / 4.0;
+        return !hasCache || intervalPassed;
     }
 
     private Image matToImage(Mat frame) {
@@ -216,7 +201,6 @@ public class FrameProcessor implements AutoCloseable {
     public void close() {
         genderCache.clear();
         lastGenderPredictionFrame.clear();
-        lastGenderPredictionBox.clear();
         logger.info("FrameProcessor closed");
     }
 

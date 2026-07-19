@@ -225,7 +225,7 @@ git diff --check
 ~~~
 
 Expected:
-- 75 tests pass with 0 failures/errors; camera skips remain hardware-aware.
+- 77 tests pass with 0 failures/errors; camera skips remain hardware-aware.
 - mvn clean verify succeeds and packages target\opencv-demo-1.2.1.jar.
 - Filtered FXML contains v1.2.1.
 - git diff --check produces no whitespace errors.

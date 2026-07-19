@@ -29,6 +29,8 @@ public class AppConfig {
     // Detection settings
     public final int detectionIntervalFrames;
     public final int genderPredictionInterval;
+    public final double genderMinConfidence;
+    public final int genderVoteWindow;
     public final int exposureRetuneIntervalFrames;
     public final double boxChangeThreshold;
     public final double minFaceSizeRatio;
@@ -111,6 +113,8 @@ public class AppConfig {
 
         detectionIntervalFrames = getInt("detection.interval.frames", 5);
         genderPredictionInterval = getInt("detection.gender.prediction.interval", 30);
+        genderMinConfidence = getDouble("detection.gender.min.confidence", 0.70);
+        genderVoteWindow = Math.max(1, getInt("detection.gender.vote.window", 5));
         exposureRetuneIntervalFrames = getInt("detection.exposure.retune.interval", 120);
         boxChangeThreshold = getDouble("detection.box.change.threshold", 0.15);
         minFaceSizeRatio = getDouble("detection.min.face.size.ratio", 0.07);

@@ -5,7 +5,7 @@ Face detection and gender-classification desktop application built with Java 25,
 ## Features
 
 - YOLOv8-face detection with SSD ResNet-10 and Haar fallback engines.
-- Optional Levi-Hassner gender classification with landmark-aware alignment.
+- Optional Levi-Hassner gender classification with validated landmark alignment, confidence gating, and temporal voting.
 - Bright-light preprocessing, adaptive camera exposure, tracking, and FPS metrics.
 - Model-path resolution that works from a checkout and from the packaged Windows app.
 - Fail-closed update verification using SHA-256 and Windows Authenticode.
@@ -60,7 +60,7 @@ The script does not terminate a running application automatically. Close Face Re
 
 ## Configuration
 
-Edit [`src/main/resources/application.properties`](src/main/resources/application.properties) for camera, detection, tracker, preprocessing, and updater settings. Update verification always requires a checksum and a valid Authenticode signature; trusted signer subject/thumbprint constraints can be configured when the release certificate is known.
+Edit [`src/main/resources/application.properties`](src/main/resources/application.properties) for camera, detection, tracker, preprocessing, and updater settings. Gender predictions below `detection.gender.min.confidence` are shown as `Unknown`, and recent predictions are stabilized with `detection.gender.vote.window`. Update verification always requires a checksum and a valid Authenticode signature; trusted signer subject/thumbprint constraints can be configured when the release certificate is known.
 
 ## Architecture
 
