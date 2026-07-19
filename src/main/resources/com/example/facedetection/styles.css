@@ -179,8 +179,7 @@
 .btn-primary:focused,
 .btn-secondary:focused,
 .btn-danger:focused,
-.combo-box:focused,
-.check-box:focused {
+.combo-box:focused {
     -fx-border-color: -color-sage;
     -fx-border-width: 2;
 }
@@ -188,6 +187,11 @@
 .toggle-chip {
     -fx-font-size: 12px;
     -fx-text-fill: -color-ink;
+}
+
+.toggle-chip:focused {
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
 }
 
 .toggle-chip > .box {
@@ -203,8 +207,13 @@
     -fx-border-color: -color-sage;
 }
 
+.toggle-chip:focused > .box {
+    -fx-border-color: -color-sage;
+    -fx-border-width: 2;
+}
+
 .toggle-chip:selected > .box > .mark {
-    -fx-background-color: -color-paper;
+    -fx-background-color: transparent;
 }
 
 .combo-box {
