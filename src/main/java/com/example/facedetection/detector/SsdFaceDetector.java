@@ -1,5 +1,6 @@
 package com.example.facedetection.detector;
 
+import com.example.facedetection.config.AppConfig;
 import com.example.facedetection.service.FaceDetection;
 import com.example.facedetection.util.MatUtils;
 import org.opencv.core.Mat;
@@ -24,11 +25,10 @@ public class SsdFaceDetector implements FaceDetector {
 
     private static final Logger logger = LoggerFactory.getLogger(SsdFaceDetector.class);
     private static final String ENGINE_NAME = "SSD Caffe";
-    private static final Size INPUT_SIZE = new Size(300, 300);
-    private static final Scalar FACE_MEAN = new Scalar(104.0, 177.0, 123.0);
-
     private final Net faceNet;
     private final float confidenceThreshold;
+    private final Size inputSize;
+    private final Scalar faceMean;
     private final boolean available;
 
     /**
@@ -39,7 +39,16 @@ public class SsdFaceDetector implements FaceDetector {
      * @param confidenceThreshold minimum confidence (0.0 - 1.0)
      */
     public SsdFaceDetector(String modelPath, String configPath, float confidenceThreshold) {
+        this(modelPath, configPath, confidenceThreshold, AppConfig.getInstance());
+    }
+
+    public SsdFaceDetector(String modelPath, String configPath, float confidenceThreshold, AppConfig config) {
         this.confidenceThreshold = confidenceThreshold;
+        this.inputSize = new Size(config.faceInputSize, config.faceInputSize);
+        double[] mean = config.faceMean;
+        this.faceMean = mean.length >= 3
+                ? new Scalar(mean[0], mean[1], mean[2])
+                : new Scalar(104.0, 177.0, 123.0);
 
         this.faceNet = Dnn.readNetFromCaffe(configPath, modelPath);
         this.available = !faceNet.empty();
@@ -71,7 +80,7 @@ public class SsdFaceDetector implements FaceDetector {
         Mat detections = null;
 
         try {
-            blob = Dnn.blobFromImage(frame, 1.0, INPUT_SIZE, FACE_MEAN, false, false);
+            blob = Dnn.blobFromImage(frame, 1.0, inputSize, faceMean, false, false);
 
             synchronized (faceNet) {
                 faceNet.setInput(blob);

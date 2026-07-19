@@ -1,23 +1,15 @@
 # Face Recognition & Analysis
 
-Real-time face detection and gender classification application built with **Java 25**, **OpenCV**, and **JavaFX**.
-
-Features a hybrid AI engine with **YOLOv8-face** (ONNX), **SSD ResNet-10** (Caffe), and **Haar Cascade** fallback, plus **Levi-Hassner** gender classification.
-
----
+Face detection and gender-classification desktop application built with Java 25, JavaFX, OpenCV, and ONNX Runtime. The current release version is **1.2.1**.
 
 ## Features
 
-- **Multi-Engine Detection** — Pluggable architecture supporting YOLOv8, SSD, and Haar Cascade
-- **Configurable** — 30+ parameters via `application.properties`
-- **Gender Classification** — Levi-Hassner model with confidence scoring
-- **Silent Updates** — Auto-detect and install updates from GitHub
-- **Dark UI** — Professional interface with AtlantaFX theme
-- **30+ FPS** — Real-time camera with adaptive exposure
-- **Tested** — 21 automated tests (unit, integration, memory)
-- **Installer** — Standalone Windows setup with bundled JRE
-
----
+- YOLOv8-face detection with SSD ResNet-10 and Haar fallback engines.
+- Optional Levi-Hassner gender classification with landmark-aware alignment.
+- Bright-light preprocessing, adaptive camera exposure, tracking, and FPS metrics.
+- Model-path resolution that works from a checkout and from the packaged Windows app.
+- Fail-closed update verification using SHA-256 and Windows Authenticode.
+- Windows installer build with bundled models and JRE.
 
 ## Requirements
 
@@ -25,152 +17,78 @@ Features a hybrid AI engine with **YOLOv8-face** (ONNX), **SSD ResNet-10** (Caff
 |------|---------|
 | JDK | 25 |
 | Maven | 3.9+ |
-| Inno Setup 6 | For `.exe` build |
+| Inno Setup | 6, only for the installer |
 
----
+## Model layout
 
-## Quick Start
+The application expects the bundled assets in this layout:
 
-```bash
-# Clone and run
-git clone https://github.com/OniAntou/Face-Recognition.git
-cd Face-Recognition
-mvn javafx:run
-
-# Run tests
-mvn test
-
-# Build installer
-build_installer.bat  # Output: releases/FaceRecognition_Setup.exe
+```text
+data/
+|-- haarcascade/haarcascade_frontalface_default.xml
+`-- models/
+    |-- face/
+    |   |-- deploy.prototxt
+    |   |-- res10_300x300_ssd_iter_140000.caffemodel
+    |   `-- yolov8n-face.onnx
+    `-- gender/
+        |-- gender_deploy.prototxt
+        `-- gender_net.caffemodel
 ```
 
----
+`ModelPaths` resolves this layout from the project root, `app/data` in an app image, or the directory beside the running JAR.
+
+## Quick start
+
+```bash
+mvn clean test
+mvn javafx:run
+```
+
+The command-line image processor accepts an input image and an optional output path:
+
+```bash
+mvn -q package -DskipTests
+java -cp "target/classes;target/dependency/*" com.example.facedetection.cli.FaceRecognitionCli input.jpg output.jpg
+```
+
+## Build the Windows installer
+
+Run `build_installer.bat` from the repository root. The script reads the version from `pom.xml`, locates a JDK with `jpackage`, builds the app image, and invokes Inno Setup when it is installed.
+
+The script does not terminate a running application automatically. Close Face Recognition before compiling an installer.
 
 ## Configuration
 
-Edit `src/main/resources/application.properties`:
-
-```properties
-# Detection
-yolo.confidence.threshold=0.65
-ssd.confidence.threshold=0.60
-
-# Camera
-camera.frame.interval.ms=33
-camera.exposure.target.brightness=165.0
-
-# Preprocessing
-vision.brightness.threshold=190.0
-vision.aggressive.gamma=1.35
-```
-
----
+Edit [`src/main/resources/application.properties`](src/main/resources/application.properties) for camera, detection, tracker, preprocessing, and updater settings. Update verification always requires a checksum and a valid Authenticode signature; trusted signer subject/thumbprint constraints can be configured when the release certificate is known.
 
 ## Architecture
 
-```
-ViewController (250 lines)
-    ├── UIManager          (UI coordination)
-    ├── FpsCalculator      (FPS metrics)
-    └── FrameProcessor     (Frame processing)
-            ├── DetectionPipeline    (Orchestration)
-            │       ├── YoloFaceDetector
-            │       ├── SsdFaceDetector
-            │       └── HaarFaceDetector
-            ├── GenderCacheManager
-            └── VisionPreprocessor
+```text
+ViewController
+|-- CameraManager - capture lifecycle and adaptive exposure
+|-- FrameProcessor - preprocessing, annotations, image conversion
+|-- DetectionPipeline - YOLO -> SSD -> Haar fallback and tracking
+|-- FaceDetectorService - SSD face net and optional gender net
+|-- UIManager - JavaFX presentation updates
+`-- ModelPaths/AppConfig - resources and configuration boundaries
 ```
 
-| Metric | Before | After |
-|--------|--------|-------|
-| ViewController | 745 lines | 250 lines (-66%) |
-| Tests | 0 | 21 |
-| Configuration | Hard-coded | 30+ properties |
+## Tests and CI
 
----
-
-## AI Models
-
-| Model | Format | Size | Purpose |
-|-------|--------|------|---------|
-| YOLOv8-face | ONNX | 12 MB | Primary detection |
-| SSD ResNet-10 | Caffe | 10 MB | Fallback |
-| Levi-Hassner | Caffe | 44 MB | Gender classification |
-| Haar Cascade | XML | 1 MB | Emergency fallback |
-
----
-
-## Testing
+Run the full suite with:
 
 ```bash
-mvn test
+mvn clean test
+mvn clean verify
 ```
 
-- **MatUtilsTest** (8) — Memory utilities
-- **VisionPreprocessorTest** (3) — Brightness detection
-- **DetectionPipelineTest** (5) — Pipeline logic
-- **Integration Tests** (5) — End-to-end scenarios
+The suite covers model loading, path resolution, detector/pipeline behavior, native matrix lifecycle, updater verification, and integration flows. Camera integration tests are hardware-aware and explicitly skip when camera index 0 is unavailable. GitHub Actions runs the Maven verification job on Windows with JDK 25.
 
----
+## Security note
 
-## Bug Fixes
-
-- Race condition in camera capture (frame cloning)
-- Memory leak in image encoding (proper Mat lifecycle)
-- Code duplication (centralized `MatUtils.safeRelease()`)
-
----
-
-## Changelog
-
-- **Phase 3** — Extracted 11 constants to `application.properties`
-- **Phase 2** — `FaceDetector` interface, 4 new services, ViewController refactor (745→250)
-- **Phase 1** — Fixed race condition, memory leak, created `MatUtils`
-
----
-
-## 🇻🇳 Tiếng Việt
-
-### Tính Năng
-
-- Phát hiện khuôn mặt đa engine (YOLOv8, SSD, Haar Cascade)
-- Cấu hình linh hoạt qua `application.properties`
-- Phân loại giới tính với mô hình Levi-Hassner
-- Cập nhật tự động từ GitHub
-- Giao diện Dark UI chuyên nghiệp
-- Camera thời gian thực 30+ FPS
-- 21 bài kiểm thử tự động
-- Bộ cài đặt Windows độc lập
-
-### Yêu Cầu
-
-| Công cụ | Phiên bản |
-|---------|-----------|
-| JDK | 25 |
-| Maven | 3.9+ |
-| Inno Setup 6 | Để build `.exe` |
-
-### Chạy Ứng Dụng
-
-```bash
-git clone https://github.com/OniAntou/Face-Recognition.git
-cd Face-Recognition
-mvn javafx:run
-```
-
-### Cấu Hình
-
-Chỉnh sửa `src/main/resources/application.properties`:
-
-```properties
-yolo.confidence.threshold=0.65
-ssd.confidence.threshold=0.60
-camera.frame.interval.ms=33
-vision.brightness.threshold=190.0
-```
-
----
+An update release must provide an executable asset and a matching SHA-256 checksum asset. The updater rejects missing or mismatched checksums, unsigned installers, invalid signatures, unsupported verification, and URLs that were not selected during the update check.
 
 ## License
 
-MIT License — [OniAntou](https://github.com/OniAntou), [Casluminous](https://github.com/Casluminous)
+MIT License - [OniAntou](https://github.com/OniAntou), [Casluminous](https://github.com/Casluminous)

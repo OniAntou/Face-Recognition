@@ -2,14 +2,12 @@ package com.example.facedetection.service;
 
 import com.example.facedetection.config.AppConfig;
 import com.example.facedetection.detector.FaceDetector;
-import com.example.facedetection.util.MatUtils;
 import org.opencv.core.Mat;
 import org.opencv.core.Rect;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 /**
@@ -40,7 +38,7 @@ public class DetectionPipeline implements AutoCloseable {
 
     public DetectionPipeline(AppConfig config, List<FaceDetector> detectors) {
         this.config = config;
-        this.tracker = new FaceTracker();
+        this.tracker = new FaceTracker(config);
 
         // Assign detectors by type for optimal strategy
         for (FaceDetector detector : detectors) {
@@ -124,8 +122,8 @@ public class DetectionPipeline implements AutoCloseable {
             return new DetectionResult(List.of(), lastDetectorLabel, true, 0.0);
         }
 
-        String suffix = brightScene && brightLightMode ? " · Bright-Light" : "";
-        String label = "Tracker · " + lastDetectorLabel + suffix;
+        String suffix = brightScene && brightLightMode ? " - Bright-Light" : "";
+        String label = "Tracker - " + lastDetectorLabel + suffix;
 
         return new DetectionResult(trackedFaces, label, true, trackedFaces.get(0).confidence());
     }
@@ -167,7 +165,8 @@ public class DetectionPipeline implements AutoCloseable {
         }
 
         // Fallback to Haar cascade
-        EngineOutcome haarOutcome = tryHaar(preferNormalized ? normalizedFrame : originalFrame, preferNormalized ? "Bright-Light" : "Native");
+        EngineOutcome haarOutcome = tryHaar(preferNormalized ? normalizedFrame : originalFrame,
+                preferNormalized ? "Bright-Light" : "Native");
         if (!haarOutcome.detections.isEmpty()) {
             return haarOutcome;
         }
@@ -257,7 +256,7 @@ public class DetectionPipeline implements AutoCloseable {
     }
 
     private String variantSuffix(String variantLabel) {
-        return "Native".equals(variantLabel) ? "" : " · " + variantLabel;
+        return "Native".equals(variantLabel) ? "" : " - " + variantLabel;
     }
 
     /**

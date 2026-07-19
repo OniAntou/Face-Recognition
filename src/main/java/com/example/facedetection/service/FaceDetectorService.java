@@ -1,5 +1,6 @@
 package com.example.facedetection.service;
 
+import com.example.facedetection.config.AppConfig;
 import com.example.facedetection.util.MatUtils;
 import org.opencv.core.Core;
 import org.opencv.core.Mat;
@@ -24,29 +25,44 @@ public class FaceDetectorService {
 
     private static final Logger logger = LoggerFactory.getLogger(FaceDetectorService.class);
 
-    private static final Scalar COLOR_BOX = new Scalar(0, 255, 0);
-    private static final Scalar COLOR_LABEL = new Scalar(0, 255, 255);
-    private static final Scalar FACE_MEAN = new Scalar(104.0, 177.0, 123.0);
-    private static final Scalar GENDER_MEAN = new Scalar(78.4263377603, 87.7689143744, 114.895847746);
-    private static final Size FACE_INPUT = new Size(300, 300);
-    private static final Size GENDER_INPUT = new Size(227, 227);
     private static final String[] GENDER_LABELS = {"Male", "Female"};
 
     private final Net faceNet;
     private final Net genderNet;
     private final float confidenceThreshold;
+    private final Scalar colorBox;
+    private final Scalar colorLabel;
+    private final Scalar faceMean;
+    private final Scalar genderMean;
+    private final Size faceInput;
+    private final Size genderInput;
     private final Object faceLock = new Object();
     private final Object genderLock = new Object();
 
     public FaceDetectorService(String faceModelPath, String faceConfigPath,
                                String genderModelPath, String genderConfigPath) {
-        this(faceModelPath, faceConfigPath, genderModelPath, genderConfigPath, 0.35f);
+        this(faceModelPath, faceConfigPath, genderModelPath, genderConfigPath,
+                0.35f, AppConfig.getInstance());
     }
 
     public FaceDetectorService(String faceModelPath, String faceConfigPath,
                                String genderModelPath, String genderConfigPath,
                                float confidenceThreshold) {
+        this(faceModelPath, faceConfigPath, genderModelPath, genderConfigPath,
+                confidenceThreshold, AppConfig.getInstance());
+    }
+
+    public FaceDetectorService(String faceModelPath, String faceConfigPath,
+                               String genderModelPath, String genderConfigPath,
+                               float confidenceThreshold, AppConfig config) {
         this.confidenceThreshold = confidenceThreshold;
+        this.colorBox = toScalar(config.colorBox, new Scalar(0, 255, 0));
+        this.colorLabel = toScalar(config.colorLabel, new Scalar(0, 255, 255));
+        this.faceMean = toScalar(config.faceMean, new Scalar(104.0, 177.0, 123.0));
+        this.genderMean = toScalar(config.genderMean,
+                new Scalar(78.4263377603, 87.7689143744, 114.895847746));
+        this.faceInput = new Size(config.faceInputSize, config.faceInputSize);
+        this.genderInput = new Size(config.genderInputSize, config.genderInputSize);
 
         this.faceNet = Dnn.readNetFromCaffe(faceConfigPath, faceModelPath);
         if (faceNet.empty()) {
@@ -60,6 +76,13 @@ public class FaceDetectorService {
 
         enableHardwareAcceleration();
         logger.info("Face & Gender DNN Detectors loaded successfully.");
+    }
+
+    private static Scalar toScalar(double[] values, Scalar fallback) {
+        if (values == null || values.length < 3) {
+            return fallback;
+        }
+        return new Scalar(values[0], values[1], values[2]);
     }
 
     private void enableHardwareAcceleration() {
@@ -83,7 +106,7 @@ public class FaceDetectorService {
     public int detectAndDrawFaces(Mat image) {
         Rect[] faces = detectFaces(image);
         for (Rect rect : faces) {
-            Imgproc.rectangle(image, rect.tl(), rect.br(), COLOR_BOX, 2);
+            Imgproc.rectangle(image, rect.tl(), rect.br(), colorBox, 2);
             drawGenderLabel(image, rect);
         }
         return faces.length;
@@ -93,7 +116,7 @@ public class FaceDetectorService {
         String[] result = predictGender(image, rect);
         String displayText = result[0] + " " + result[1];
         Imgproc.putText(image, displayText, new Point(rect.x, rect.y - 10),
-                Imgproc.FONT_HERSHEY_SIMPLEX, 0.7, COLOR_LABEL, 2);
+                Imgproc.FONT_HERSHEY_SIMPLEX, 0.7, colorLabel, 2);
     }
 
     public String[] predictGender(Mat image, Rect faceRect) {
@@ -115,7 +138,7 @@ public class FaceDetectorService {
                 return new String[]{"Unknown", ""};
             }
 
-            blob = Dnn.blobFromImage(face, 1.0, GENDER_INPUT, GENDER_MEAN, false, false);
+            blob = Dnn.blobFromImage(face, 1.0, genderInput, genderMean, false, false);
 
             synchronized (genderLock) {
                 genderNet.setInput(blob);
@@ -195,13 +218,13 @@ public class FaceDetectorService {
 
             MatOfPoint2f src = new MatOfPoint2f(leftEye, rightEye, nose);
             MatOfPoint2f dst = new MatOfPoint2f(
-                    new Point(GENDER_INPUT.width * 0.32, GENDER_INPUT.height * 0.38),
-                    new Point(GENDER_INPUT.width * 0.68, GENDER_INPUT.height * 0.38),
-                    new Point(GENDER_INPUT.width * 0.50, GENDER_INPUT.height * 0.60));
+                    new Point(genderInput.width * 0.32, genderInput.height * 0.38),
+                    new Point(genderInput.width * 0.68, genderInput.height * 0.38),
+                    new Point(genderInput.width * 0.50, genderInput.height * 0.60));
             Mat transform = Imgproc.getAffineTransform(src, dst);
             Mat aligned = new Mat();
             try {
-                Imgproc.warpAffine(image, aligned, transform, GENDER_INPUT,
+                Imgproc.warpAffine(image, aligned, transform, genderInput,
                         Imgproc.INTER_LINEAR, Core.BORDER_REPLICATE, Scalar.all(0));
                 return aligned;
             } finally {
@@ -219,7 +242,7 @@ public class FaceDetectorService {
         int imgWidth = image.cols();
         int imgHeight = image.rows();
 
-        Mat blob = Dnn.blobFromImage(image, 1.0, FACE_INPUT, FACE_MEAN, false, false);
+        Mat blob = Dnn.blobFromImage(image, 1.0, faceInput, faceMean, false, false);
         Mat detections = null;
         try {
             synchronized (faceLock) {

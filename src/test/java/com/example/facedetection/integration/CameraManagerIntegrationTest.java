@@ -20,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class CameraManagerIntegrationTest {
 
     static {
-        nu.pattern.OpenCV.loadShared();
+        nu.pattern.OpenCV.loadLocally();
     }
 
     private CameraManager cameraManager;

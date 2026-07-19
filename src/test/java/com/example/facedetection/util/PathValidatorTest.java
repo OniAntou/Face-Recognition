@@ -5,6 +5,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.File;
+import java.nio.file.Files;
 import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -96,6 +97,18 @@ class PathValidatorTest {
     void resolveSafePathRejectsEscape() {
         Path resolved = PathValidator.resolveSafePath("/data", "image/../../../etc/passwd");
         assertNull(resolved);
+    }
+
+    @Test
+    void allowedDirectoryCheckHonorsPathBoundaries() throws Exception {
+        Path root = Files.createTempDirectory("allowed-root-");
+        Path allowed = Files.createDirectories(root.resolve("models"));
+        Path sibling = Files.createDirectories(root.resolve("models-evil"));
+        Path allowedFile = Files.createFile(allowed.resolve("model.onnx"));
+        Path siblingFile = Files.createFile(sibling.resolve("model.onnx"));
+
+        assertTrue(PathValidator.isFileInAllowedDirectory(allowedFile.toString(), allowed.toString()));
+        assertFalse(PathValidator.isFileInAllowedDirectory(siblingFile.toString(), allowed.toString()));
     }
 
     @ParameterizedTest

@@ -1,11 +1,9 @@
 package com.example.facedetection;
 
 import atlantafx.base.theme.PrimerDark;
-import com.example.facedetection.config.AppConfig;
 import com.example.facedetection.controller.ViewController;
 import com.example.facedetection.service.PreferencesService;
 import javafx.application.Application;
-import javafx.application.Platform;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
@@ -29,17 +27,8 @@ public class MainApp extends Application {
 
     @Override
     public void init() {
-        // Register a safety-net shutdown hook that will forcibly kill the JVM
-        // if the normal stop() flow hangs (e.g. OpenCV native thread stuck).
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            try {
-                // If we're still here after 2 seconds of shutdown start, force halt.
-                // This is a safety net for native OpenCV threads that don't respect interrupts.
-                Thread.sleep(2000);
-                logger.info("Shutdown safety net triggered: Forcing halt...");
-                Runtime.getRuntime().halt(0);
-            } catch (InterruptedException ignored) {}
-        }, "shutdown-safety-net"));
+        // Resource cleanup is coordinated by stop()/performShutdown(). Avoid
+        // Runtime.halt(), which can terminate native cleanup mid-operation.
     }
 
     @Override
@@ -54,13 +43,9 @@ public class MainApp extends Application {
             // Store HostServices for later use
             hostServicesInstance = getHostServices();
 
-            // Try loading OpenCV
-            try {
-                OpenCV.loadShared();
-            } catch (Throwable e) {
-                logger.warn("OpenCV.loadShared() failed, trying loadLocally()", e);
-                OpenCV.loadLocally();
-            }
+            // Resolve the bundled native library consistently in development
+            // and packaged launches.
+            OpenCV.loadLocally();
 
             FXMLLoader fxmlLoader = new FXMLLoader(MainApp.class.getResource("scene.fxml"));
             Parent root = fxmlLoader.load();
@@ -99,17 +84,8 @@ public class MainApp extends Application {
                 performShutdown();
             });
 
-            // Save window state when resized
-            stage.widthProperty().addListener((obs, oldVal, newVal) -> {
-                if (!stage.isMaximized()) {
-                    preferencesService.setWindowSize(newVal.doubleValue(), stage.getHeight());
-                }
-            });
-            stage.heightProperty().addListener((obs, oldVal, newVal) -> {
-                if (!stage.isMaximized()) {
-                    preferencesService.setWindowSize(stage.getWidth(), newVal.doubleValue());
-                }
-            });
+            // Window dimensions are persisted once on close. Persisting from
+            // every resize event performs a synchronous Preferences.flush().
             stage.maximizedProperty().addListener((obs, oldVal, newVal) -> {
                 preferencesService.setWindowMaximized(newVal);
             });
@@ -139,17 +115,6 @@ public class MainApp extends Application {
         }
 
         logger.info("Application shutting down...");
-
-        // Watchdog thread: force halt if cleanup hangs for more than 3 seconds
-        Thread watchdog = new Thread(() -> {
-            try {
-                Thread.sleep(3000);
-                logger.warn("Shutdown cleanup taking too long, forcing halt...");
-                Runtime.getRuntime().halt(0);
-            } catch (InterruptedException ignored) {}
-        }, "shutdown-watchdog");
-        watchdog.setDaemon(true);
-        watchdog.start();
 
         // Start a daemon thread to do the cleanup
         Thread shutdownThread = new Thread(() -> {

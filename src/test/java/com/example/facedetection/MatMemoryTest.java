@@ -20,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class MatMemoryTest {
 
     static {
-        nu.pattern.OpenCV.loadShared();
+        nu.pattern.OpenCV.loadLocally();
     }
 
     private static final int ITERATIONS = 1000;

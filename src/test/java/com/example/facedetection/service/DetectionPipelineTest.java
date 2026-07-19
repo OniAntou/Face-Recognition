@@ -1,6 +1,7 @@
 package com.example.facedetection.service;
 
 import com.example.facedetection.config.AppConfig;
+import com.example.facedetection.config.ModelPaths;
 import com.example.facedetection.detector.FaceDetector;
 import com.example.facedetection.detector.SsdFaceDetector;
 import nu.pattern.OpenCV;
@@ -11,7 +12,6 @@ import org.opencv.core.Mat;
 import org.opencv.core.Scalar;
 import org.opencv.imgproc.Imgproc;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -27,29 +27,28 @@ class DetectionPipelineTest {
 
     @BeforeAll
     static void setup() {
-        OpenCV.loadShared();
+        OpenCV.loadLocally();
         config = AppConfig.getInstance();
 
-        String dataPath = "data/";
+        ModelPaths paths = ModelPaths.resolve();
+        assertTrue(paths.hasSsd() && paths.hasGender(), paths::describeMissingFiles);
         faceDetectorService = new FaceDetectorService(
-                dataPath + "res10_300x300_ssd_iter_140000.caffemodel",
-                dataPath + "deploy.prototxt",
-                dataPath + "gender_net.caffemodel",
-                dataPath + "gender_deploy.prototxt",
-                config.ssdConfidenceThreshold
+                paths.ssdModel().toString(),
+                paths.ssdConfig().toString(),
+                paths.genderModel().toString(),
+                paths.genderConfig().toString(),
+                config.ssdConfidenceThreshold,
+                config
         );
     }
 
     private static List<FaceDetector> createDetectors() {
-        String dataPath = "data/";
-        File modelFile = new File(dataPath + "res10_300x300_ssd_iter_140000.caffemodel");
-        File configFile = new File(dataPath + "deploy.prototxt");
-        
+        ModelPaths paths = ModelPaths.resolve();
         List<FaceDetector> detectors = new ArrayList<>();
-        if (modelFile.exists() && configFile.exists()) {
+        if (paths.hasSsd()) {
             detectors.add(new SsdFaceDetector(
-                modelFile.getAbsolutePath(),
-                configFile.getAbsolutePath(),
+                paths.ssdModel().toString(),
+                paths.ssdConfig().toString(),
                 config.ssdConfidenceThreshold
             ));
         }

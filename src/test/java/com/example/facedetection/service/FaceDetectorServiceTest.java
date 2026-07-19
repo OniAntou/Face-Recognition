@@ -1,5 +1,6 @@
 package com.example.facedetection.service;
 
+import com.example.facedetection.config.ModelPaths;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -19,14 +20,14 @@ class FaceDetectorServiceTest {
     @BeforeAll
     static void setup() {
         // Load OpenCV native library using OpenPNP loader
-        nu.pattern.OpenCV.loadShared();
+        nu.pattern.OpenCV.loadLocally();
         
-        String dataPath = "data/";
+        ModelPaths paths = ModelPaths.resolve();
         service = new FaceDetectorService(
-                dataPath + "res10_300x300_ssd_iter_140000.caffemodel",
-                dataPath + "deploy.prototxt",
-                dataPath + "gender_net.caffemodel",
-                dataPath + "gender_deploy.prototxt"
+                paths.ssdModel().toString(),
+                paths.ssdConfig().toString(),
+                paths.genderModel().toString(),
+                paths.genderConfig().toString()
         );
     }
 

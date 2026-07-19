@@ -1,6 +1,7 @@
 package com.example.facedetection.controller;
 
 import com.example.facedetection.config.AppConfig;
+import com.example.facedetection.config.ModelPaths;
 import com.example.facedetection.detector.*;
 import com.example.facedetection.metrics.FpsCalculator;
 import com.example.facedetection.processor.FrameProcessor;
@@ -83,13 +84,17 @@ public class ViewController {
 
     // State
     private final AtomicLong frameCounter = new AtomicLong(0);
+    private final AtomicBoolean adaptiveExposureEnabled = new AtomicBoolean(true);
+    private final AtomicBoolean brightLightModeEnabled = new AtomicBoolean(true);
+    private final AtomicBoolean genderRecognitionEnabled = new AtomicBoolean(false);
 
     public ViewController() {
         // Configure AI executor from config
         this.aiExecutor = Executors.newSingleThreadExecutor(r -> {
             Thread thread = new Thread(r, "ai-processor");
             thread.setDaemon(true);
-            thread.setPriority(Thread.NORM_PRIORITY + config.performanceAiThreadPriority);
+            thread.setPriority(Math.max(Thread.MIN_PRIORITY,
+                    Math.min(Thread.MAX_PRIORITY, Thread.NORM_PRIORITY + config.performanceAiThreadPriority)));
             return thread;
         });
     }
@@ -146,90 +151,98 @@ public class ViewController {
     }
 
     private void initializeModels() {
-        File dataDir = new File("data");
-        if (!dataDir.exists()) {
-            dataDir = new File("app" + File.separator + "data");
+        ModelPaths modelPaths = ModelPaths.resolve();
+        logger.info("Resolved model data directory: {}", modelPaths.dataDirectory());
+        if (!modelPaths.missingFiles().isEmpty()) {
+            logger.warn(modelPaths.describeMissingFiles());
         }
 
-        File faceDir = new File(dataDir, "models" + File.separator + "face");
-        File genderDir = new File(dataDir, "models" + File.separator + "gender");
-        File haarDir = new File(dataDir, "haarcascade");
-
-        List<FaceDetector> detectors = new ArrayList<>();
-
         // Initialize YOLO if available
-        File yoloFile = new File(faceDir, "yolov8n-face.onnx");
-        if (yoloFile.exists() && PathValidator.isValidModelPath(yoloFile.getAbsolutePath())) {
+        if (modelPaths.hasYolo() && PathValidator.isValidModelPath(modelPaths.yoloModel().toString())) {
             try {
-                yoloDetector = new YoloFaceDetector(yoloFile.getAbsolutePath(),
+                yoloDetector = new YoloFaceDetector(modelPaths.yoloModel().toString(),
                         config.yoloConfidenceThreshold, config.yoloNmsThreshold);
-                detectors.add(yoloDetector);
-                logger.info("YOLO detector initialized from {}", yoloFile.getPath());
+                logger.info("YOLO detector initialized from {}", modelPaths.yoloModel());
             } catch (Exception e) {
-                logger.error("Failed to initialize YOLO: {}", e.getMessage());
+                logger.error("Failed to initialize YOLO from {}: {}", modelPaths.yoloModel(), e.getMessage());
             }
         }
 
         // Initialize SSD
-        File faceModel = new File(faceDir, "res10_300x300_ssd_iter_140000.caffemodel");
-        File faceConfig = new File(faceDir, "deploy.prototxt");
-
-        if (faceModel.exists() && faceConfig.exists()) {
-            ssdDetector = new SsdFaceDetector(
-                    faceModel.getAbsolutePath(),
-                    faceConfig.getAbsolutePath(),
-                    config.ssdConfidenceThreshold);
-            detectors.add(ssdDetector);
-            logger.info("SSD detector initialized");
+        if (modelPaths.hasSsd()) {
+            try {
+                ssdDetector = new SsdFaceDetector(
+                        modelPaths.ssdModel().toString(),
+                        modelPaths.ssdConfig().toString(),
+                        config.ssdConfidenceThreshold,
+                        config);
+                logger.info("SSD detector initialized");
+            } catch (Exception e) {
+                logger.error("Failed to initialize SSD: {}", e.getMessage());
+            }
         }
 
         // Keep FaceDetectorService for gender prediction
-        File genderModel = new File(genderDir, "gender_net.caffemodel");
-        File genderConfig = new File(genderDir, "gender_deploy.prototxt");
-
-        if (faceModel.exists() && faceConfig.exists() && genderModel.exists() && genderConfig.exists()) {
-            faceDetectorService = new FaceDetectorService(
-                    faceModel.getAbsolutePath(),
-                    faceConfig.getAbsolutePath(),
-                    genderModel.getAbsolutePath(),
-                    genderConfig.getAbsolutePath(),
-                    config.ssdConfidenceThreshold);
-            logger.info("Gender recognition service initialized");
+        if (modelPaths.hasSsd() && modelPaths.hasGender()) {
+            try {
+                faceDetectorService = new FaceDetectorService(
+                        modelPaths.ssdModel().toString(),
+                        modelPaths.ssdConfig().toString(),
+                        modelPaths.genderModel().toString(),
+                        modelPaths.genderConfig().toString(),
+                        config.ssdConfidenceThreshold,
+                        config);
+                logger.info("Gender recognition service initialized");
+            } catch (Exception e) {
+                logger.error("Failed to initialize gender recognition: {}", e.getMessage());
+            }
         }
 
         // Initialize Haar cascade if available
-        File haarFile = new File(haarDir, "haarcascade_frontalface_default.xml");
-        if (haarFile.exists() && PathValidator.isValidModelPath(haarFile.getAbsolutePath())) {
-            haarDetector = new HaarFaceDetector(haarFile.getAbsolutePath());
-            detectors.add(haarDetector);
-            logger.info("Haar cascade detector initialized");
+        if (modelPaths.hasHaar() && PathValidator.isValidModelPath(modelPaths.haarCascade().toString())) {
+            try {
+                haarDetector = new HaarFaceDetector(modelPaths.haarCascade().toString());
+                logger.info("Haar cascade detector initialized");
+            } catch (Exception e) {
+                logger.error("Failed to initialize Haar cascade: {}", e.getMessage());
+            }
         }
 
-        if (detectors.isEmpty()) {
-            logger.warn("No face detectors were initialized. Application may not function correctly.");
-        } else {
-            logger.info("AI models initialized successfully ({} detectors)", detectors.size());
+        if (!modelPaths.hasAnyFaceDetector()) {
+            logger.warn("No face detector model files were found. Application may not function correctly.");
         }
     }
 
     private void restorePreferences() {
         // Restore exposure settings
         boolean adaptiveExposure = preferencesService.isAdaptiveExposureEnabled(true);
+        adaptiveExposureEnabled.set(adaptiveExposure);
         if (adaptiveExposureCheckBox != null) {
             adaptiveExposureCheckBox.setSelected(adaptiveExposure);
         }
 
         boolean brightLightMode = preferencesService.isBrightLightModeEnabled(true);
+        brightLightModeEnabled.set(brightLightMode);
         if (brightLightModeCheckBox != null) {
             brightLightModeCheckBox.setSelected(brightLightMode);
         }
         if (detectionPipeline != null) {
             detectionPipeline.setBrightLightMode(brightLightMode);
         }
+        if (cameraManager != null) {
+            cameraManager.setBrightLightModeEnabled(brightLightMode);
+        }
 
         boolean genderRecognition = preferencesService.isGenderRecognitionEnabled(false);
+        boolean genderAvailable = faceDetectorService != null;
+        genderRecognitionEnabled.set(genderAvailable && genderRecognition);
         if (genderRecognitionCheckBox != null) {
-            genderRecognitionCheckBox.setSelected(genderRecognition);
+            genderRecognitionCheckBox.setDisable(!genderAvailable);
+            genderRecognitionCheckBox.setSelected(genderAvailable && genderRecognition);
+            if (!genderAvailable) {
+                genderRecognitionCheckBox.setTooltip(new javafx.scene.control.Tooltip(
+                        "Gender model is unavailable"));
+            }
         }
 
         // Initialize labels
@@ -275,6 +288,7 @@ public class ViewController {
     @FXML
     private void handleAdaptiveExposureToggle() {
         boolean enabled = isAdaptiveExposureEnabled();
+        adaptiveExposureEnabled.set(enabled);
         cameraManager.setAdaptiveExposureEnabled(enabled);
         preferencesService.setAdaptiveExposureEnabled(enabled);
 
@@ -286,8 +300,12 @@ public class ViewController {
     @FXML
     private void handleBrightLightModeToggle() {
         boolean enabled = isBrightLightModeEnabled();
+        brightLightModeEnabled.set(enabled);
         if (detectionPipeline != null) {
             detectionPipeline.setBrightLightMode(enabled);
+        }
+        if (cameraManager != null) {
+            cameraManager.setBrightLightModeEnabled(enabled);
         }
         preferencesService.setBrightLightModeEnabled(enabled);
 
@@ -298,7 +316,8 @@ public class ViewController {
 
     @FXML
     private void handleGenderRecognitionToggle() {
-        boolean enabled = isGenderRecognitionEnabled();
+        boolean enabled = faceDetectorService != null && isGenderRecognitionEnabled();
+        genderRecognitionEnabled.set(enabled);
         preferencesService.setGenderRecognitionEnabled(enabled);
     }
 
@@ -320,9 +339,7 @@ public class ViewController {
         fpsCalculator.reset();
 
         // Configure initial exposure
-        if (uiManager.isAdaptiveExposureEnabled()) {
-            cameraManager.setAdaptiveExposureEnabled(true);
-        }
+        cameraManager.setAdaptiveExposureEnabled(adaptiveExposureEnabled.get());
 
         // Update UI
         uiManager.setCameraActive();
@@ -355,6 +372,10 @@ public class ViewController {
         }
 
         long currentFrame = frameCounter.incrementAndGet();
+        // Snapshot controller state before dispatching work. JavaFX controls
+        // must never be queried from the AI executor.
+        boolean brightLightMode = brightLightModeEnabled.get();
+        boolean genderRecognition = genderRecognitionEnabled.get();
 
         // The frame passed from CameraManager is already a clone/safe copy.
         // We can pass it directly to the processor.
@@ -363,8 +384,8 @@ public class ViewController {
                 FrameProcessor.FrameResult result = frameProcessor.process(
                         frame, 
                         currentFrame, 
-                        brightLightModeCheckBox.isSelected(),
-                        genderRecognitionCheckBox.isSelected());
+                        brightLightMode,
+                        genderRecognition);
                 double fps = fpsCalculator.update();
                 return new FrameUIResult(result, fps, cameraManager.getExposureStatus());
             } finally {
@@ -391,7 +412,7 @@ public class ViewController {
         uiManager.updateFrame(
                 result.frameResult().originalImage(),
                 result.frameResult().processedImage(),
-                "Live · " + result.frameResult().statusText(),
+                "Live - " + result.frameResult().statusText(),
                 "Engine: " + result.frameResult().engineLabel(),
                 result.fps(),
                 result.exposureStatus()
@@ -404,30 +425,33 @@ public class ViewController {
             return;
         }
 
-        Mat image = Imgcodecs.imread(file.getAbsolutePath());
-        if (image.empty()) {
-            uiManager.showError("Image Error", "Cannot read image at " + file.getAbsolutePath());
-            return;
-        }
+        boolean brightLightMode = brightLightModeEnabled.get();
+        boolean genderRecognition = genderRecognitionEnabled.get();
+        CompletableFuture.supplyAsync(() -> {
+            Mat image = Imgcodecs.imread(file.getAbsolutePath());
+            if (image.empty()) {
+                MatUtils.safeRelease(image);
+                throw new IllegalArgumentException("Cannot read image at " + file.getAbsolutePath());
+            }
 
-        try {
-            // Reset for fresh detection
-            frameProcessor.reset();
+            try {
+                // Reset for fresh detection
+                frameProcessor.reset();
 
-            // Process image using FrameProcessor
-            FrameProcessor.FrameResult result = frameProcessor.process(
-                    image, 
-                    1, 
-                    isBrightLightModeEnabled(),
-                    isGenderRecognitionEnabled());
+                return frameProcessor.process(image, 1, brightLightMode, genderRecognition);
 
-            // Update UI via UIManager
-            uiManager.updateStaticImage(result.originalImage(), result.processedImage(),
-                    "Done · " + result.statusText(), "Engine: " + result.engineLabel());
-
-        } finally {
-            MatUtils.safeRelease(image);
-        }
+            } finally {
+                MatUtils.safeRelease(image);
+            }
+        }, aiExecutor).thenAcceptAsync(result -> uiManager.updateStaticImage(
+                result.originalImage(), result.processedImage(),
+                "Done - " + result.statusText(), "Engine: " + result.engineLabel()), Platform::runLater)
+                .exceptionally(error -> {
+                    Throwable cause = error.getCause() != null ? error.getCause() : error;
+                    Platform.runLater(() -> uiManager.showError("Image Error", cause.getMessage()));
+                    logger.error("Selected image processing failed", cause);
+                    return null;
+                });
     }
 
     private void detectCameras() {
@@ -534,6 +558,7 @@ public class ViewController {
     }
 
     private boolean isGenderRecognitionEnabled() {
-        return genderRecognitionCheckBox == null || genderRecognitionCheckBox.isSelected();
+        return genderRecognitionCheckBox != null && !genderRecognitionCheckBox.isDisabled()
+                && genderRecognitionCheckBox.isSelected();
     }
 }

@@ -1,38 +1,67 @@
 package com.example.facedetection.service;
 
+import com.example.facedetection.config.AppConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.security.cert.Certificate;
-import java.security.cert.CertificateFactory;
-import java.util.Base64;
+import java.util.HexFormat;
+import java.util.Locale;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 /**
- * Security service for verifying file integrity and authenticity.
- * Provides SHA-256 checksum verification and digital signature validation.
+ * Verifies update integrity and authenticity.
+ *
+ * <p>Checksum verification is platform independent. Authenticode verification
+ * is delegated to Windows PowerShell and fails closed on other platforms or
+ * when the verifier cannot produce a valid result.</p>
  */
 public class SecurityService {
 
     private static final Logger logger = LoggerFactory.getLogger(SecurityService.class);
     private static final String SHA256_ALGORITHM = "SHA-256";
     private static final int BUFFER_SIZE = 8192;
+    private static final long SIGNATURE_TIMEOUT_SECONDS = 10;
+
+    private final String trustedSignerSubject;
+    private final String trustedSignerThumbprint;
+    private final DigitalSignatureVerifier signatureVerifier;
+
+    public SecurityService() {
+        this(AppConfig.getInstance(), null);
+    }
+
+    public SecurityService(AppConfig config) {
+        this(config, null);
+    }
 
     /**
-     * Verifies a file's SHA-256 checksum.
-     *
-     * @param filePath path to the file
-     * @param expectedHash expected SHA-256 hash (hex string or base64)
-     * @return true if hash matches, false otherwise
+     * Constructor for deterministic tests and callers that provide a platform
+     * signature verifier.
+     */
+    public SecurityService(DigitalSignatureVerifier signatureVerifier) {
+        this(AppConfig.getInstance(), signatureVerifier);
+    }
+
+    public SecurityService(AppConfig config, DigitalSignatureVerifier signatureVerifier) {
+        this.trustedSignerSubject = config.updateTrustedSignerSubject == null
+                ? "" : config.updateTrustedSignerSubject.trim();
+        this.trustedSignerThumbprint = normalizeThumbprint(config.updateTrustedSignerThumbprint);
+        this.signatureVerifier = signatureVerifier != null
+                ? signatureVerifier : this::verifyWithPowerShell;
+    }
+
+    /**
+     * Verifies a file's SHA-256 checksum. Only a normalized 64-character
+     * hexadecimal SHA-256 value is accepted.
      */
     public boolean verifyChecksum(String filePath, String expectedHash) {
         if (filePath == null || expectedHash == null) {
@@ -40,57 +69,58 @@ public class SecurityService {
             return false;
         }
 
-        try {
-            String actualHash = calculateSha256(filePath);
-            if (actualHash == null) {
-                return false;
-            }
-
-            // Normalize expected hash (remove whitespace, convert to lowercase)
-            String normalizedExpected = expectedHash.replaceAll("\\s", "").toLowerCase();
-            String normalizedActual = actualHash.toLowerCase();
-
-            boolean matches = normalizedActual.equals(normalizedExpected);
-            if (!matches) {
-                logger.warn("Checksum mismatch for {}: expected={}, actual={}",
-                        filePath, normalizedExpected, normalizedActual);
-            } else {
-                logger.info("Checksum verified for {}", filePath);
-            }
-
-            return matches;
-        } catch (Exception e) {
-            logger.error("Failed to verify checksum for {}: {}", filePath, e.getMessage());
+        String normalizedExpected = expectedHash.replaceAll("\\s", "").toLowerCase(Locale.ROOT);
+        if (!normalizedExpected.matches("[0-9a-f]{64}")) {
+            logger.warn("Rejected malformed SHA-256 checksum for {}", filePath);
             return false;
         }
+
+        String actualHash = calculateSha256(filePath);
+        if (actualHash == null) {
+            return false;
+        }
+
+        boolean matches = MessageDigest.isEqual(
+                normalizedExpected.getBytes(StandardCharsets.US_ASCII),
+                actualHash.getBytes(StandardCharsets.US_ASCII));
+        if (!matches) {
+            logger.warn("Checksum mismatch for {}: expected={}, actual={}",
+                    filePath, normalizedExpected, actualHash);
+        } else {
+            logger.info("Checksum verified for {}", filePath);
+        }
+        return matches;
     }
 
-    /**
-     * Calculates the SHA-256 hash of a file.
-     *
-     * @param filePath path to the file
-     * @return SHA-256 hash as lowercase hex string, or null if failed
-     */
+    /** Calculates a file's lowercase SHA-256 hash, or {@code null} on failure. */
     public String calculateSha256(String filePath) {
-        Path path = Paths.get(filePath);
-        if (!Files.exists(path)) {
+        if (filePath == null) {
+            return null;
+        }
+
+        final Path path;
+        try {
+            path = Path.of(filePath);
+        } catch (InvalidPathException e) {
+            logger.warn("Invalid file path for hashing: {}", e.getMessage());
+            return null;
+        }
+
+        if (!Files.isRegularFile(path)) {
             logger.warn("File does not exist: {}", filePath);
             return null;
         }
 
-        try (InputStream is = new FileInputStream(path.toFile())) {
+        try (InputStream input = Files.newInputStream(path)) {
             MessageDigest digest = MessageDigest.getInstance(SHA256_ALGORITHM);
             byte[] buffer = new byte[BUFFER_SIZE];
             int read;
-
-            while ((read = is.read(buffer)) != -1) {
+            while ((read = input.read(buffer)) != -1) {
                 digest.update(buffer, 0, read);
             }
-
-            byte[] hashBytes = digest.digest();
-            return bytesToHex(hashBytes);
+            return HexFormat.of().formatHex(digest.digest());
         } catch (NoSuchAlgorithmException e) {
-            logger.error("SHA-256 algorithm not available: {}", e.getMessage());
+            logger.error("SHA-256 algorithm not available", e);
             return null;
         } catch (IOException e) {
             logger.error("Failed to read file for hashing: {}", e.getMessage());
@@ -98,101 +128,134 @@ public class SecurityService {
         }
     }
 
-    /**
-     * Calculates SHA-256 hash of a byte array.
-     *
-     * @param data byte array
-     * @return SHA-256 hash as lowercase hex string
-     */
+    /** Calculates SHA-256 for an in-memory payload. */
     public String calculateSha256(byte[] data) {
         if (data == null) {
             return null;
         }
-
         try {
-            MessageDigest digest = MessageDigest.getInstance(SHA256_ALGORITHM);
-            byte[] hashBytes = digest.digest(data);
-            return bytesToHex(hashBytes);
+            return HexFormat.of().formatHex(MessageDigest.getInstance(SHA256_ALGORITHM).digest(data));
         } catch (NoSuchAlgorithmException e) {
-            logger.error("SHA-256 algorithm not available: {}", e.getMessage());
+            logger.error("SHA-256 algorithm not available", e);
             return null;
         }
     }
 
     /**
-     * Converts byte array to hexadecimal string.
-     */
-    private String bytesToHex(byte[] bytes) {
-        StringBuilder sb = new StringBuilder(bytes.length * 2);
-        for (byte b : bytes) {
-            sb.append(String.format("%02x", b));
-        }
-        return sb.toString();
-    }
-
-    /**
-     * Converts byte array to base64 string.
-     */
-    private String bytesToBase64(byte[] bytes) {
-        return Base64.getEncoder().encodeToString(bytes);
-    }
-
-    /**
-     * Verifies a file's digital signature (placeholder for future implementation).
-     * In production, this would verify Authenticode signatures on Windows.
-     *
-     * @param filePath path to the executable
-     * @return VerificationResult containing status and details
+     * Verifies a downloaded executable's Authenticode signature.
      */
     public VerificationResult verifyDigitalSignature(String filePath) {
-        File file = new File(filePath);
-        if (!file.exists()) {
-            return new VerificationResult(false, "File not found", Optional.empty());
+        try {
+            if (filePath == null || !Files.isRegularFile(Path.of(filePath))) {
+                return VerificationResult.invalid("File not found");
+            }
+        } catch (InvalidPathException e) {
+            return VerificationResult.invalid("Invalid file path");
         }
-
-        // Note: Full Authenticode verification requires JNI or external tools
-        // This is a simplified check that verifies the file exists and is an executable
-        if (!filePath.endsWith(".exe")) {
-            return new VerificationResult(false, "Not an executable file", Optional.empty());
+        if (!filePath.toLowerCase(Locale.ROOT).endsWith(".exe")) {
+            return VerificationResult.invalid("Not an executable file");
         }
-
-        // In a production environment, you would:
-        // 1. Use Windows API via JNI/JNA to call WinVerifyTrust
-        // 2. Or use signtool.exe to verify the signature
-        // 3. Or use a Java library that supports Authenticode
-
-        logger.info("Digital signature verification not fully implemented (file exists check only)");
-        return new VerificationResult(true, "File exists (full signature verification not implemented)",
-                Optional.of("Place holder for certificate info"));
+        return signatureVerifier.verify(filePath);
     }
 
     /**
-     * Downloads and verifies a file with checksum.
-     *
-     * @param filePath path to downloaded file
-     * @param expectedHash expected SHA-256 hash
-     * @param deleteOnFailure whether to delete the file if verification fails
-     * @return true if verification passed, false otherwise
+     * Verifies a file with checksum and optionally deletes it on failure.
      */
     public boolean verifyDownloadedFile(String filePath, String expectedHash, boolean deleteOnFailure) {
         boolean valid = verifyChecksum(filePath, expectedHash);
-
-        if (!valid && deleteOnFailure) {
+        if (!valid && deleteOnFailure && filePath != null) {
             try {
-                Files.deleteIfExists(Paths.get(filePath));
+                Files.deleteIfExists(Path.of(filePath));
                 logger.info("Deleted unverified file: {}", filePath);
-            } catch (IOException e) {
+            } catch (IOException | InvalidPathException e) {
                 logger.error("Failed to delete unverified file: {}", e.getMessage());
             }
         }
-
         return valid;
     }
 
-    /**
-     * Result of a verification operation.
-     */
-    public static class VerificationResult {
+    private VerificationResult verifyWithPowerShell(String filePath) {
+        if (!isWindows()) {
+            return VerificationResult.invalid("Authenticode verification is only available on Windows");
+        }
+
+        String script = "$s = Get-AuthenticodeSignature -LiteralPath $env:FACE_UPDATE_PATH; "
+                + "if ($null -eq $s) { Write-Output 'STATUS=Missing'; exit 1 }; "
+                + "if ($s.Status -ne 'Valid') { Write-Output ('STATUS=' + $s.Status); exit 1 }; "
+                + "$subject = if ($null -ne $s.SignerCertificate) {$s.SignerCertificate.Subject} else {''}; "
+                + "$thumb = if ($null -ne $s.SignerCertificate) {$s.SignerCertificate.Thumbprint} else {''}; "
+                + "Write-Output 'STATUS=Valid'; Write-Output ('SUBJECT=' + $subject); "
+                + "Write-Output ('THUMBPRINT=' + $thumb)";
+
+        try {
+            ProcessBuilder builder = new ProcessBuilder(
+                    "powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script);
+            builder.redirectErrorStream(true);
+            builder.environment().put("FACE_UPDATE_PATH", filePath);
+
+            Process process = builder.start();
+            boolean finished = process.waitFor(SIGNATURE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            if (!finished) {
+                process.destroyForcibly();
+                return VerificationResult.invalid("Authenticode verifier timed out");
+            }
+
+            String output;
+            try (InputStream input = process.getInputStream()) {
+                output = new String(input.readAllBytes(), StandardCharsets.UTF_8);
+            }
+
+            String status = outputValue(output, "STATUS");
+            if (process.exitValue() != 0 || !"Valid".equalsIgnoreCase(status)) {
+                return VerificationResult.invalid("Authenticode status: "
+                        + (status.isBlank() ? "unknown" : status));
+            }
+
+            String subject = outputValue(output, "SUBJECT");
+            String thumbprint = normalizeThumbprint(outputValue(output, "THUMBPRINT"));
+            if (!trustedSignerSubject.isBlank()
+                    && !subject.toLowerCase(Locale.ROOT).contains(trustedSignerSubject.toLowerCase(Locale.ROOT))) {
+                return VerificationResult.invalid("Signer subject is not trusted: " + subject);
+            }
+            if (!trustedSignerThumbprint.isBlank()
+                    && !trustedSignerThumbprint.equalsIgnoreCase(thumbprint)) {
+                return VerificationResult.invalid("Signer thumbprint is not trusted");
+            }
+
+            return new VerificationResult(true, "Authenticode signature is valid",
+                    Optional.of("Subject=" + subject + "; Thumbprint=" + thumbprint));
+        } catch (IOException e) {
+            return VerificationResult.invalid("Could not start Authenticode verifier: " + e.getMessage());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return VerificationResult.invalid("Authenticode verification interrupted");
+        }
+    }
+
+    private static String outputValue(String output, String key) {
+        for (String line : output.split("\\R")) {
+            if (line.startsWith(key + "=")) {
+                return line.substring(key.length() + 1).trim();
+            }
+        }
+        return "";
+    }
+
+    private static String normalizeThumbprint(String value) {
+        return value == null ? "" : value.replaceAll("\\s", "").toUpperCase(Locale.ROOT);
+    }
+
+    private static boolean isWindows() {
+        return System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win");
+    }
+
+    @FunctionalInterface
+    public interface DigitalSignatureVerifier {
+        VerificationResult verify(String filePath);
+    }
+
+    /** Result of checksum/signature verification. */
+    public static final class VerificationResult {
         private final boolean valid;
         private final String message;
         private final Optional<String> certificateInfo;
@@ -200,7 +263,11 @@ public class SecurityService {
         public VerificationResult(boolean valid, String message, Optional<String> certificateInfo) {
             this.valid = valid;
             this.message = message;
-            this.certificateInfo = certificateInfo;
+            this.certificateInfo = certificateInfo == null ? Optional.empty() : certificateInfo;
+        }
+
+        public static VerificationResult invalid(String message) {
+            return new VerificationResult(false, message, Optional.empty());
         }
 
         public boolean isValid() {

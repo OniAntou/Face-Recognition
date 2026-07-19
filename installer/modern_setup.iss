@@ -3,7 +3,9 @@
 
 [Setup]
 AppName=Face Recognition
-AppVersion=1.0
+; AppVersion is supplied by build_installer.bat from pom.xml.
+#define AppVersion GetEnv("FACE_APP_VERSION")
+AppVersion={#AppVersion}
 AppPublisher=Face Recognition
 DefaultDirName={autopf}\FaceRecognition
 DefaultGroupName=Face Recognition
@@ -49,7 +51,7 @@ Source: "..\data\models\face\deploy.prototxt"; DestDir: "{app}\app\data\models\f
 Source: "..\data\models\face\res10_300x300_ssd_iter_140000.caffemodel"; DestDir: "{app}\app\data\models\face"; Flags: ignoreversion
 Source: "..\data\models\gender\gender_deploy.prototxt"; DestDir: "{app}\app\data\models\gender"; Flags: ignoreversion
 Source: "..\data\models\gender\gender_net.caffemodel"; DestDir: "{app}\app\data\models\gender"; Flags: ignoreversion
-; Note: haarcascade_frontalface_default.xml removed to save space as YOLO is used instead
+Source: "..\data\haarcascade\haarcascade_frontalface_default.xml"; DestDir: "{app}\app\data\haarcascade"; Flags: ignoreversion
 
 
 [Icons]

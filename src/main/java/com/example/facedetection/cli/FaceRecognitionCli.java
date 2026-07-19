@@ -1,6 +1,9 @@
 package com.example.facedetection.cli;
 
+import com.example.facedetection.config.AppConfig;
+import com.example.facedetection.config.ModelPaths;
 import com.example.facedetection.service.FaceDetectorService;
+import com.example.facedetection.util.MatUtils;
 import com.example.facedetection.util.PathValidator;
 import nu.pattern.OpenCV;
 import org.opencv.core.Mat;
@@ -8,90 +11,78 @@ import org.opencv.imgcodecs.Imgcodecs;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 /**
- * Command-line interface for face recognition.
- * Processes a single image and outputs the result with face detection annotations.
+ * Processes one image using the bundled SSD and gender models.
+ *
+ * <p>Usage: {@code FaceRecognitionCli <input-image> [output-image]}</p>
  */
-public class FaceRecognitionCli {
+public final class FaceRecognitionCli {
 
     private static final Logger logger = LoggerFactory.getLogger(FaceRecognitionCli.class);
 
+    private FaceRecognitionCli() {
+    }
+
     public static void main(String[] args) {
-        // 1. Load OpenCV native lib
-        OpenCV.loadShared();
-        logger.info("OpenCV loaded successfully");
+        if (args.length < 1 || args.length > 2) {
+            logger.error("Usage: FaceRecognitionCli <input-image> [output-image]");
+            return;
+        }
 
-        // 2. Build paths relative to project root
-        String modelPath       = "data" + File.separator + "res10_300x300_ssd_iter_140000.caffemodel";
-        String configPath      = "data" + File.separator + "deploy.prototxt";
-        String genderModelPath = "data" + File.separator + "gender_net.caffemodel";
-        String genderConfigPath = "data" + File.separator + "gender_deploy.prototxt";
-        String inPath  = "Image_Test" + File.separator + "input.jpg";
-        String outPath = "Image_Output" + File.separator + "result.jpg";
+        OpenCV.loadLocally();
+        ModelPaths models = ModelPaths.resolve();
+        if (!models.hasSsd() || !models.hasGender()) {
+            logger.error("Required SSD/gender models are unavailable: {}", models.describeMissingFiles());
+            return;
+        }
 
-        // 3. Validate all paths to prevent path traversal attacks
-        if (!validatePaths(modelPath, configPath, genderModelPath, genderConfigPath, inPath, outPath)) {
-            logger.error("Path validation failed. Exiting.");
-            System.exit(1);
+        Path input = Path.of(args[0]).toAbsolutePath().normalize();
+        Path output = args.length == 2
+                ? Path.of(args[1]).toAbsolutePath().normalize()
+                : Path.of("Image_Output", "result.jpg").toAbsolutePath().normalize();
+
+        if (!PathValidator.isValidImagePath(input.toString())
+                || !Files.isRegularFile(input)
+                || !PathValidator.isValidImagePath(output.toString())) {
+            logger.error("Input/output path validation failed");
+            return;
         }
 
         Mat image = null;
+        FaceDetectorService service = null;
         try {
-            // 4. Initialize Service
-            FaceDetectorService service = new FaceDetectorService(
-                    modelPath, configPath, genderModelPath, genderConfigPath);
+            Files.createDirectories(output.getParent());
+            service = new FaceDetectorService(
+                    models.ssdModel().toString(),
+                    models.ssdConfig().toString(),
+                    models.genderModel().toString(),
+                    models.genderConfig().toString(),
+                    AppConfig.getInstance().ssdConfidenceThreshold,
+                    AppConfig.getInstance());
 
-            // 5. Read input image
-            image = Imgcodecs.imread(inPath);
+            image = Imgcodecs.imread(input.toString());
             if (image.empty()) {
-                logger.error("Cannot read image at {}", inPath);
+                logger.error("Cannot read image at {}", input);
                 return;
             }
 
-            // 6. Detect and draw faces
             int count = service.detectAndDrawFaces(image);
-            if (count == 0) {
-                logger.info("No faces detected.");
-            } else {
-                logger.info("{} face(s) detected.", count);
+            logger.info("{} face(s) detected", count);
+            if (!Imgcodecs.imwrite(output.toString(), image)) {
+                logger.error("Could not write image to {}", output);
+                return;
             }
-
-            // 7. Save result
-            File outputDir = new File("Image_Output");
-            if (!outputDir.exists()) {
-                outputDir.mkdirs();
-            }
-
-            if (Imgcodecs.imwrite(outPath, image)) {
-                logger.info("Output saved to {}", outPath);
-            } else {
-                logger.error("Could not write image to {}", outPath);
-            }
+            logger.info("Output saved to {}", output);
         } catch (Exception e) {
-            logger.error("Error during face recognition: {}", e.getMessage(), e);
+            logger.error("Face recognition failed", e);
         } finally {
-            // Ensure native memory is always released
-            if (image != null) {
-                image.release();
+            MatUtils.safeRelease(image);
+            if (service != null) {
+                service.close();
             }
         }
-    }
-
-    /**
-     * Validates all file paths to prevent path traversal attacks.
-     *
-     * @param paths paths to validate
-     * @return true if all paths are valid
-     */
-    private static boolean validatePaths(String... paths) {
-        for (String path : paths) {
-            if (!PathValidator.isValidPath(path)) {
-                logger.error("Invalid path detected: {}", path);
-                return false;
-            }
-        }
-        return true;
     }
 }

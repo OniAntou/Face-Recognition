@@ -1,6 +1,7 @@
 package com.example.facedetection.integration;
 
 import com.example.facedetection.config.AppConfig;
+import com.example.facedetection.config.ModelPaths;
 import com.example.facedetection.detector.FaceDetector;
 import com.example.facedetection.detector.SsdFaceDetector;
 import com.example.facedetection.detector.YoloFaceDetector;
@@ -11,7 +12,6 @@ import org.junit.jupiter.api.Test;
 import org.opencv.core.Mat;
 import org.opencv.imgproc.Imgproc;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -24,7 +24,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class DetectionPipelineIntegrationTest {
 
     static {
-        nu.pattern.OpenCV.loadShared();
+        nu.pattern.OpenCV.loadLocally();
     }
 
     private DetectionPipeline pipeline;
@@ -36,21 +36,14 @@ class DetectionPipelineIntegrationTest {
         config = AppConfig.getInstance();
         detectors = new ArrayList<>();
 
-        // Initialize detectors if models are available
-        File dataDir = new File("data");
-        if (!dataDir.exists()) {
-            dataDir = new File("app/data");
-        }
+        ModelPaths paths = ModelPaths.resolve();
 
         // Try to initialize SSD detector
-        File faceModel = new File(dataDir, "res10_300x300_ssd_iter_140000.caffemodel");
-        File faceConfig = new File(dataDir, "deploy.prototxt");
-
-        if (faceModel.exists() && faceConfig.exists()) {
+        if (paths.hasSsd()) {
             try {
                 detectors.add(new SsdFaceDetector(
-                    faceModel.getAbsolutePath(),
-                    faceConfig.getAbsolutePath(),
+                    paths.ssdModel().toString(),
+                    paths.ssdConfig().toString(),
                     config.ssdConfidenceThreshold
                 ));
             } catch (Exception e) {
@@ -59,11 +52,10 @@ class DetectionPipelineIntegrationTest {
         }
 
         // Try to initialize YOLO if available
-        File yoloModel = new File(dataDir, "yolov8n-face.onnx");
-        if (yoloModel.exists()) {
+        if (paths.hasYolo()) {
             try {
                 detectors.add(new YoloFaceDetector(
-                    yoloModel.getAbsolutePath(),
+                    paths.yoloModel().toString(),
                     config.yoloConfidenceThreshold,
                     config.yoloNmsThreshold
                 ));
@@ -107,8 +99,12 @@ class DetectionPipelineIntegrationTest {
 
         assertNotNull(result);
         // Blank image should not have faces
-        assertTrue(result.faces().isEmpty() || result.faces().size() >= 0,
-            "Blank image should produce 0 or very few detections");
+        assertTrue(result.faces().stream().allMatch(face -> {
+            var box = face.boundingBox();
+            return box.x >= 0 && box.y >= 0
+                    && box.x + box.width <= blankImage.cols()
+                    && box.y + box.height <= blankImage.rows();
+        }), "Every detection must stay inside the frame");
 
         blankImage.release();
     }
@@ -152,6 +148,7 @@ class DetectionPipelineIntegrationTest {
         assertNotNull(result);
         assertNotNull(result.engineLabel());
 
+        roi.release();
         testImage.release();
     }
 

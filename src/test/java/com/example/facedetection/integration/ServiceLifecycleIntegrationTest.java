@@ -19,7 +19,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class ServiceLifecycleIntegrationTest {
 
     static {
-        nu.pattern.OpenCV.loadShared();
+        nu.pattern.OpenCV.loadLocally();
     }
 
     @Test
@@ -44,6 +44,33 @@ class ServiceLifecycleIntegrationTest {
 
         // After close, operations should handle gracefully
         // (not throw unexpected exceptions)
+    }
+
+    @Test
+    void returnsEmptyBorrowedMatricesToTheirPool() {
+        MatPool pool = new MatPool(4, 2);
+        Mat empty = pool.borrowByteMat();
+        empty.create(0, 0, org.opencv.core.CvType.CV_8UC3);
+
+        assertTrue(empty.empty());
+        pool.returnMat(empty);
+        assertEquals(0, pool.getActiveCount(MatPool.PoolType.BYTE_MAT));
+        pool.close();
+    }
+
+    @Test
+    void typedPoolsProduceTheTypesTheirContractsPromise() {
+        MatPool pool = new MatPool(4, 2);
+        Mat bytes = pool.borrowByteMat();
+        Mat floats = pool.borrowFloatMat();
+
+        assertEquals(org.opencv.core.CvType.CV_8UC3, bytes.type());
+        assertEquals(org.opencv.core.CvType.CV_32FC1, floats.type());
+
+        pool.returnMat(bytes);
+        pool.returnMat(floats);
+        assertEquals(0, pool.getActiveCount(MatPool.PoolType.AUTO));
+        pool.close();
     }
 
     @Test

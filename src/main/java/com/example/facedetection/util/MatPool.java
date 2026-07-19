@@ -11,6 +11,10 @@ import org.opencv.core.Size;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Collections;
+import java.util.IdentityHashMap;
+import java.util.Map;
+
 import static com.example.facedetection.util.MatUtils.safeRelease;
 
 /**
@@ -24,6 +28,7 @@ public class MatPool implements AutoCloseable {
     private final GenericObjectPool<Mat> genericPool;
     private final GenericObjectPool<Mat> byteMatPool;
     private final GenericObjectPool<Mat> floatMatPool;
+    private final Map<Mat, PoolType> borrowedMats = Collections.synchronizedMap(new IdentityHashMap<>());
 
     private static final int DEFAULT_MAX_TOTAL = 20;
     private static final int DEFAULT_MAX_IDLE = 10;
@@ -71,7 +76,9 @@ public class MatPool implements AutoCloseable {
      */
     public Mat borrowGeneric() {
         try {
-            return genericPool.borrowObject();
+            Mat mat = genericPool.borrowObject();
+            borrowedMats.put(mat, PoolType.GENERIC);
+            return mat;
         } catch (Exception e) {
             logger.debug("Generic pool exhausted, creating new Mat");
             return new Mat();
@@ -84,10 +91,12 @@ public class MatPool implements AutoCloseable {
      */
     public Mat borrowByteMat() {
         try {
-            return byteMatPool.borrowObject();
+            Mat mat = byteMatPool.borrowObject();
+            borrowedMats.put(mat, PoolType.BYTE_MAT);
+            return mat;
         } catch (Exception e) {
             logger.debug("Byte pool exhausted, creating new Mat");
-            return new Mat();
+            return new Mat(1, 1, CvType.CV_8UC3);
         }
     }
 
@@ -97,10 +106,12 @@ public class MatPool implements AutoCloseable {
      */
     public Mat borrowFloatMat() {
         try {
-            return floatMatPool.borrowObject();
+            Mat mat = floatMatPool.borrowObject();
+            borrowedMats.put(mat, PoolType.FLOAT_MAT);
+            return mat;
         } catch (Exception e) {
             logger.debug("Float pool exhausted, creating new Mat");
-            return new Mat();
+            return new Mat(1, 1, CvType.CV_32FC1);
         }
     }
 
@@ -109,32 +120,30 @@ public class MatPool implements AutoCloseable {
      * @param mat the Mat to return
      */
     public void returnMat(Mat mat) {
-        if (mat == null || mat.nativeObj == 0) {
+        if (mat == null) {
             return;
         }
 
-        if (mat.empty()) {
+        PoolType ownedType = borrowedMats.remove(mat);
+        if (mat.nativeObj == 0) {
+            safeRelease(mat);
+            return;
+        }
+
+        if (ownedType != null) {
+            if (returnToPool(mat, ownedType)) {
+                return;
+            }
             safeRelease(mat);
             return;
         }
 
         int type = mat.type();
-        try {
-            if (type == CvType.CV_8UC3) {
-                byteMatPool.returnObject(mat);
-                return;
-            } else if (type == CvType.CV_32F || type == CvType.CV_32FC1) {
-                floatMatPool.returnObject(mat);
-                return;
-            }
-        } catch (IllegalStateException ignored) {
-            // Not from specific pool, try generic
-        }
-
-        try {
-            genericPool.returnObject(mat);
-        } catch (Exception e) {
-            // Not from any pool or pool closed
+        PoolType inferredType = type == CvType.CV_8UC3
+                ? PoolType.BYTE_MAT
+                : (type == CvType.CV_32F || type == CvType.CV_32FC1
+                ? PoolType.FLOAT_MAT : PoolType.GENERIC);
+        if (!returnToPool(mat, inferredType)) {
             safeRelease(mat);
         }
     }
@@ -145,32 +154,59 @@ public class MatPool implements AutoCloseable {
      * @param poolType the type hint for the pool
      */
     public void returnMat(Mat mat, PoolType poolType) {
-        if (mat == null || mat.nativeObj == 0) {
+        if (mat == null) {
             return;
         }
 
-        if (mat.empty()) {
+        PoolType ownedType = borrowedMats.remove(mat);
+        if (mat.nativeObj == 0) {
             safeRelease(mat);
             return;
         }
 
+        PoolType target = poolType == PoolType.AUTO || poolType == null
+                ? (ownedType != null ? ownedType : inferPoolType(mat))
+                : poolType;
+        if (!returnToPool(mat, target)) {
+            safeRelease(mat);
+        }
+    }
+
+    private PoolType inferPoolType(Mat mat) {
+        int type = mat.type();
+        if (type == CvType.CV_8UC3) {
+            return PoolType.BYTE_MAT;
+        }
+        if (type == CvType.CV_32F || type == CvType.CV_32FC1) {
+            return PoolType.FLOAT_MAT;
+        }
+        return PoolType.GENERIC;
+    }
+
+    private boolean returnToPool(Mat mat, PoolType poolType) {
         try {
             switch (poolType) {
                 case BYTE_MAT -> byteMatPool.returnObject(mat);
                 case FLOAT_MAT -> floatMatPool.returnObject(mat);
                 case GENERIC -> genericPool.returnObject(mat);
-                default -> returnMat(mat); // Auto-detect
+                case AUTO -> {
+                    return returnToPool(mat, inferPoolType(mat));
+                }
             }
-        } catch (IllegalStateException e) {
-            // If it failed the specific pool, try generic as last resort
-            try {
-                genericPool.returnObject(mat);
-            } catch (Exception ex) {
-                safeRelease(mat);
-            }
+            return true;
         } catch (Exception e) {
-            safeRelease(mat);
+            logger.debug("Could not return Mat to {} pool: {}", poolType, e.getMessage());
+            return false;
         }
+    }
+
+    public int getActiveCount(PoolType poolType) {
+        return switch (poolType) {
+            case BYTE_MAT -> byteMatPool.getNumActive();
+            case FLOAT_MAT -> floatMatPool.getNumActive();
+            case GENERIC -> genericPool.getNumActive();
+            case AUTO -> genericPool.getNumActive() + byteMatPool.getNumActive() + floatMatPool.getNumActive();
+        };
     }
 
     @Override
@@ -181,6 +217,7 @@ public class MatPool implements AutoCloseable {
         genericPool.close();
         byteMatPool.close();
         floatMatPool.close();
+        borrowedMats.clear();
     }
 
 
@@ -238,7 +275,7 @@ public class MatPool implements AutoCloseable {
     private static class ByteMatFactory extends BasePooledObjectFactory<Mat> {
         @Override
         public Mat create() {
-            return new Mat();
+            return new Mat(1, 1, CvType.CV_8UC3);
         }
 
         @Override
@@ -259,7 +296,10 @@ public class MatPool implements AutoCloseable {
 
         @Override
         public void passivateObject(PooledObject<Mat> p) {
-            // Keep buffer for reuse
+            Mat mat = p.getObject();
+            if (mat != null && mat.nativeObj != 0) {
+                mat.create(1, 1, CvType.CV_8UC3);
+            }
         }
     }
 
@@ -269,7 +309,7 @@ public class MatPool implements AutoCloseable {
     private static class FloatMatFactory extends BasePooledObjectFactory<Mat> {
         @Override
         public Mat create() {
-            return new Mat();
+            return new Mat(1, 1, CvType.CV_32FC1);
         }
 
         @Override
@@ -290,7 +330,10 @@ public class MatPool implements AutoCloseable {
 
         @Override
         public void passivateObject(PooledObject<Mat> p) {
-            // Keep buffer for reuse
+            Mat mat = p.getObject();
+            if (mat != null && mat.nativeObj != 0) {
+                mat.create(1, 1, CvType.CV_32FC1);
+            }
         }
     }
 }

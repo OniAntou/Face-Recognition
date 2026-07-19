@@ -20,7 +20,7 @@ class VisionPreprocessorTest {
 
     @BeforeAll
     static void setup() {
-        OpenCV.loadShared();
+        OpenCV.loadLocally();
     }
 
     @BeforeEach

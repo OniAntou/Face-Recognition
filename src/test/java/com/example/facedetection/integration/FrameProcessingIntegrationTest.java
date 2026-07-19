@@ -25,7 +25,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class FrameProcessingIntegrationTest {
 
     static {
-        nu.pattern.OpenCV.loadShared();
+        nu.pattern.OpenCV.loadLocally();
     }
 
     private MatPool matPool;
@@ -72,7 +72,8 @@ class FrameProcessingIntegrationTest {
         // Borrow again - should get the same mat (or a valid one)
         Mat borrowed2 = matPool.borrowByteMat();
         assertNotNull(borrowed2);
-        borrowed2.release();
+        matPool.returnMat(borrowed2);
+        assertEquals(0, matPool.getActiveCount(MatPool.PoolType.BYTE_MAT));
     }
 
     @Test

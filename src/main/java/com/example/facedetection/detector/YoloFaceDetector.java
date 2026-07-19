@@ -21,6 +21,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.FloatBuffer;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -52,20 +54,28 @@ public class YoloFaceDetector implements FaceDetector {
      */
     public YoloFaceDetector(String modelPath, float confidenceThreshold, float nmsThreshold)
             throws OrtException {
+        if (modelPath == null || modelPath.isBlank()) {
+            throw new IllegalArgumentException("YOLO model path is empty");
+        }
+        Path model = Path.of(modelPath).toAbsolutePath().normalize();
+        if (!Files.isRegularFile(model)) {
+            throw new IllegalArgumentException("YOLO model file not found: " + model);
+        }
+
         this.confidenceThreshold = confidenceThreshold;
         this.nmsThreshold = nmsThreshold;
 
         this.env = OrtEnvironment.getEnvironment();
 
-        OrtSession.SessionOptions options = new OrtSession.SessionOptions();
-        options.setInterOpNumThreads(1);
-        options.setIntraOpNumThreads(Math.max(1, Runtime.getRuntime().availableProcessors() / 2));
-        options.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.ALL_OPT);
-
-        this.session = env.createSession(modelPath, options);
+        try (OrtSession.SessionOptions options = new OrtSession.SessionOptions()) {
+            options.setInterOpNumThreads(1);
+            options.setIntraOpNumThreads(Math.max(1, Runtime.getRuntime().availableProcessors() / 2));
+            options.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.ALL_OPT);
+            this.session = env.createSession(model.toString(), options);
+        }
         this.available = true;
 
-        logger.info("{} detector initialized from {}", ENGINE_NAME, modelPath);
+        logger.info("{} detector initialized from {}", ENGINE_NAME, model);
     }
 
     @Override

@@ -12,7 +12,7 @@ class MatUtilsTest {
 
     static {
         // Load OpenCV native library
-        nu.pattern.OpenCV.loadShared();
+        nu.pattern.OpenCV.loadLocally();
     }
 
     @Test

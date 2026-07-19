@@ -161,7 +161,8 @@ public class FrameProcessor implements AutoCloseable {
                     new org.opencv.core.Scalar(0, 255, 0), 2);
 
             // Determine if gender prediction needed
-            if (isGenderRecognitionEnabled && shouldPredictGender(face, currentFrame, rect)) {
+            if (isGenderRecognitionEnabled && faceDetectorService != null
+                    && shouldPredictGender(face, currentFrame, rect)) {
                 String[] result = faceDetectorService.predictGender(
                         analysisFrame, rect, face.landmarksCopy());
                 genderCache.put(face.id(), result);

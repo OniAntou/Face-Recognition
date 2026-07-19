@@ -131,7 +131,7 @@
             <Region styleClass="status-dot-active" />
             <Label fx:id="statusLabel" id="statusLabel" text="System Ready" />
             <Region HBox.hgrow="ALWAYS" />
-            <Label text="v1.2.0-PRO" styleClass="meta-label" />
+            <Label text="v${project.version}" styleClass="meta-label" />
         </HBox>
     </bottom>
 

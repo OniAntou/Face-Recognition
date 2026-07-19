@@ -59,19 +59,17 @@ public class AppConfig {
     public final int trackerMaxMissedFrames;
 
     // Image settings
-    public final String imageEncodingFormat;
-    public final double imageEncodingQuality;
     public final int imageDisplayMaxWidth;
 
     // Update settings
     public final int updateCheckTimeoutSeconds;
     public final int updateDownloadTimeoutSeconds;
     public final String updateGithubApiUrl;
+    public final String updateTrustedSignerSubject;
+    public final String updateTrustedSignerThumbprint;
 
     // Performance settings
-    public final int performanceAiThreads;
     public final int performanceAiThreadPriority;
-    public final int performanceCameraThreads;
 
     // FPS settings
     public final double fpsSmoothingFactor;
@@ -109,7 +107,7 @@ public class AppConfig {
         cameraBufferSize = getInt("camera.buffer.size", 1);
         cameraDefaultWidth = getInt("camera.default.width", 640);
         cameraDefaultHeight = getInt("camera.default.height", 480);
-        cameraShutdownTimeoutMs = getLong("camera.shutdown.timeout.ms", 100);
+        cameraShutdownTimeoutMs = getLong("camera.shutdown.timeout.ms", 2000);
 
         detectionIntervalFrames = getInt("detection.interval.frames", 5);
         genderPredictionInterval = getInt("detection.gender.prediction.interval", 30);
@@ -138,18 +136,16 @@ public class AppConfig {
         trackerRectSmoothing = getDouble("tracker.rect.smoothing", 0.60);
         trackerMaxMissedFrames = getInt("tracker.max.missed.frames", 6);
 
-        imageEncodingFormat = getString("image.encoding.format", "png");
-        imageEncodingQuality = getDouble("image.encoding.quality", 0.95);
         imageDisplayMaxWidth = getInt("image.display.max.width", 640);
 
         updateCheckTimeoutSeconds = getInt("update.check.timeout.seconds", 5);
         updateDownloadTimeoutSeconds = getInt("update.download.timeout.seconds", 30);
         updateGithubApiUrl = getString("update.github.api.url",
                 "https://api.github.com/repos/OniAntou/Face-Recognition/releases/latest");
+        updateTrustedSignerSubject = getString("update.trusted.signer.subject", "");
+        updateTrustedSignerThumbprint = getString("update.trusted.signer.thumbprint", "");
 
-        performanceAiThreads = getInt("performance.ai.threads", 1);
         performanceAiThreadPriority = getInt("performance.ai.thread.priority", -1);
-        performanceCameraThreads = getInt("performance.camera.threads", 1);
 
         fpsSmoothingFactor = getDouble("fps.smoothing.factor", 0.80);
 

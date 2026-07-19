@@ -74,6 +74,8 @@ public class CameraManager implements AutoCloseable {
 
         if (!capture.open(index)) {
             logger.error("Failed to open camera at index {}", index);
+            capture.release();
+            capture = null;
             return false;
         }
 
@@ -119,14 +121,19 @@ public class CameraManager implements AutoCloseable {
     public void stopCapture() {
         active.set(false);
 
-        if (captureThread != null) {
-            captureThread.interrupt();
+        Thread thread = captureThread;
+        if (thread != null) {
+            thread.interrupt();
             try {
-                captureThread.join(config.cameraShutdownTimeoutMs);
+                thread.join(config.cameraShutdownTimeoutMs);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
-            captureThread = null;
+            if (thread.isAlive()) {
+                logger.warn("Camera capture thread did not stop within {} ms", config.cameraShutdownTimeoutMs);
+            } else {
+                captureThread = null;
+            }
         }
 
         logger.info("Camera capture stopped");
@@ -158,9 +165,15 @@ public class CameraManager implements AutoCloseable {
     }
 
     private void captureLoop() {
+        long currentFrame = 0;
         while (active.get() && !Thread.currentThread().isInterrupted()) {
             Mat frame = grabFrame();
             if (!frame.empty() && frameHandler != null) {
+                currentFrame++;
+                if (adaptiveExposureEnabled) {
+                    optimizeExposure(currentFrame, frame);
+                }
+
                 // Use MatPool to recycle frames if available, otherwise clone
                 Mat frameCopy;
                 if (matPool != null) {
@@ -195,8 +208,11 @@ public class CameraManager implements AutoCloseable {
 
         for (int i = 0; i < 10; i++) {
             VideoCapture temp = new VideoCapture(i);
-            if (temp.isOpened()) {
-                available.add(i);
+            try {
+                if (temp.isOpened()) {
+                    available.add(i);
+                }
+            } finally {
                 temp.release();
             }
         }
@@ -436,12 +452,16 @@ public class CameraManager implements AutoCloseable {
         stopCapture();
 
         if (capture != null && capture.isOpened()) {
+            if (captureThread != null && captureThread.isAlive()) {
+                logger.warn("Releasing camera while capture thread is still alive");
+            }
             try {
                 capture.release();
             } catch (Exception e) {
                 logger.error("Error releasing camera: {}", e.getMessage());
             }
         }
+        capture = null;
 
         logger.info("Camera manager closed");
     }

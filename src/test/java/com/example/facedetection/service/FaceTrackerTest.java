@@ -20,7 +20,7 @@ class FaceTrackerTest {
 
     @BeforeAll
     static void setup() {
-        OpenCV.loadShared();
+        OpenCV.loadLocally();
     }
 
     @Test

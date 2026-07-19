@@ -27,10 +27,6 @@ public final class PathValidator {
             "onnx", "caffemodel", "prototxt", "xml"
     ));
 
-    private static final Set<String> FORBIDDEN_PATHS = new HashSet<>(Arrays.asList(
-            "..", "~", ".", "/", "\\", "\u0000"
-    ));
-
     private PathValidator() {
         // Utility class
     }
@@ -203,11 +199,11 @@ public final class PathValidator {
         }
 
         try {
-            String canonicalPath = file.getCanonicalPath();
+            Path canonicalPath = file.getCanonicalFile().toPath().toAbsolutePath().normalize();
 
             for (String baseDir : allowedBaseDirs) {
-                File baseFile = new File(baseDir);
-                String canonicalBase = baseFile.getCanonicalPath();
+                Path canonicalBase = new File(baseDir).getCanonicalFile().toPath()
+                        .toAbsolutePath().normalize();
 
                 if (canonicalPath.startsWith(canonicalBase)) {
                     return true;

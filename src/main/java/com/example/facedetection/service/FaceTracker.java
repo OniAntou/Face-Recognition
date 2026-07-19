@@ -1,5 +1,6 @@
 package com.example.facedetection.service;
 
+import com.example.facedetection.config.AppConfig;
 import org.opencv.core.Core;
 import org.opencv.core.Mat;
 import org.opencv.core.Point;
@@ -16,14 +17,25 @@ import java.util.List;
  */
 public class FaceTracker implements AutoCloseable {
 
-    private static final double IOU_ASSOCIATION_THRESHOLD = 0.45;
-    private static final double TRACK_MATCH_THRESHOLD = 0.58;
-    private static final double SEARCH_EXPANSION_RATIO = 0.45;
-    private static final double RECT_SMOOTHING = 0.60;
-    private static final int MAX_MISSED_FRAMES = 6;
-
+    private final double iouAssociationThreshold;
+    private final double trackMatchThreshold;
+    private final double searchExpansionRatio;
+    private final double rectSmoothing;
+    private final int maxMissedFrames;
     private final List<TrackState> tracks = new ArrayList<>();
     private int nextTrackId = 1;
+
+    public FaceTracker() {
+        this(AppConfig.getInstance());
+    }
+
+    public FaceTracker(AppConfig config) {
+        this.iouAssociationThreshold = config.trackerIouThreshold;
+        this.trackMatchThreshold = config.trackerMatchThreshold;
+        this.searchExpansionRatio = config.trackerSearchExpansion;
+        this.rectSmoothing = config.trackerRectSmoothing;
+        this.maxMissedFrames = config.trackerMaxMissedFrames;
+    }
 
     public synchronized List<TrackedFace> updateWithDetections(Mat frame, List<FaceDetection> detections) {
         Mat gray = toGray(frame);
@@ -79,7 +91,7 @@ public class FaceTracker implements AutoCloseable {
                     continue;
                 }
 
-                Rect searchRect = expandRect(safeRect, gray.cols(), gray.rows(), SEARCH_EXPANSION_RATIO);
+                Rect searchRect = expandRect(safeRect, gray.cols(), gray.rows(), searchExpansionRatio);
                 if (searchRect.width < track.templateGray.cols() || searchRect.height < track.templateGray.rows()) {
                     track.missedFrames++;
                     continue;
@@ -90,7 +102,7 @@ public class FaceTracker implements AutoCloseable {
                 try {
                     Imgproc.matchTemplate(searchRegion, track.templateGray, result, Imgproc.TM_CCOEFF_NORMED);
                     Core.MinMaxLocResult mm = Core.minMaxLoc(result);
-                    if (mm.maxVal < TRACK_MATCH_THRESHOLD) {
+                    if (mm.maxVal < trackMatchThreshold) {
                         track.missedFrames++;
                         continue;
                     }
@@ -165,7 +177,7 @@ public class FaceTracker implements AutoCloseable {
             for (int detectionIndex = 0; detectionIndex < detections.size(); detectionIndex++) {
                 Rect detectionRect = detections.get(detectionIndex).boundingBox();
                 double iou = computeIoU(trackRect, detectionRect);
-                if (iou < IOU_ASSOCIATION_THRESHOLD) {
+                if (iou < iouAssociationThreshold) {
                     continue;
                 }
 
@@ -220,7 +232,7 @@ public class FaceTracker implements AutoCloseable {
     private void pruneLostTracks() {
         tracks.removeIf(track -> {
             // Drop if missed too many frames
-            if (track.missedFrames > MAX_MISSED_FRAMES) {
+            if (track.missedFrames > maxMissedFrames) {
                 track.templateGray.release();
                 return true;
             }
@@ -261,11 +273,11 @@ public class FaceTracker implements AutoCloseable {
         return gray;
     }
 
-    private static Rect blendRect(Rect previous, Rect current) {
-        int x = (int) Math.round(previous.x * RECT_SMOOTHING + current.x * (1.0 - RECT_SMOOTHING));
-        int y = (int) Math.round(previous.y * RECT_SMOOTHING + current.y * (1.0 - RECT_SMOOTHING));
-        int width = (int) Math.round(previous.width * RECT_SMOOTHING + current.width * (1.0 - RECT_SMOOTHING));
-        int height = (int) Math.round(previous.height * RECT_SMOOTHING + current.height * (1.0 - RECT_SMOOTHING));
+    private Rect blendRect(Rect previous, Rect current) {
+        int x = (int) Math.round(previous.x * rectSmoothing + current.x * (1.0 - rectSmoothing));
+        int y = (int) Math.round(previous.y * rectSmoothing + current.y * (1.0 - rectSmoothing));
+        int width = (int) Math.round(previous.width * rectSmoothing + current.width * (1.0 - rectSmoothing));
+        int height = (int) Math.round(previous.height * rectSmoothing + current.height * (1.0 - rectSmoothing));
         return new Rect(Math.max(0, x), Math.max(0, y), Math.max(1, width), Math.max(1, height));
     }
 

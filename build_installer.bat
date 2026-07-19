@@ -8,8 +8,7 @@ echo.
 REM Ensure we're in the correct directory
 cd /d "%~dp0"
 
-echo Step 0: Ensuring application is closed and cleaning up...
-taskkill /F /IM FaceRecognition.exe /T >nul 2>&1
+echo Step 0: Cleaning up previous build output...
 if exist "target" rd /s /q "target"
 if exist "releases\FaceRecognition_Setup.exe" del "releases\FaceRecognition_Setup.exe"
 
@@ -25,8 +24,36 @@ if not exist "pom.xml" (
     exit /b 1
 )
 
-set "JAVA_HOME=C:\Users\USER\.jdk\jdk-25"
+echo Detecting JDK...
+set "JAVA_HOME_VALID="
+if defined JAVA_HOME if exist "%JAVA_HOME%\bin\jpackage.exe" set "JAVA_HOME_VALID=1"
+
+if not defined JAVA_HOME_VALID (
+    set "JAVA_BIN="
+    for /f "delims=" %%J in ('where java 2^>nul') do if not defined JAVA_BIN set "JAVA_BIN=%%~dpJ"
+    if defined JAVA_BIN set "JAVA_HOME=!JAVA_BIN:~0,-5!"
+)
+
+if not defined JAVA_HOME if defined JAVA_BIN set "JAVA_HOME=!JAVA_BIN:~0,-5!"
+if not exist "%JAVA_HOME%\bin\jpackage.exe" (
+    echo ERROR: A JDK with jpackage.exe was not found.
+    echo Set JAVA_HOME to a JDK installation or add java.exe from a JDK to PATH.
+    pause
+    exit /b 1
+)
+
 set "PATH=%JAVA_HOME%\bin;%PATH%"
+
+set "APP_VERSION="
+for /f "usebackq delims=" %%V in (`powershell -NoProfile -Command "$xml=[xml](Get-Content -Raw -LiteralPath 'pom.xml'); $xml.project.version"`) do set "APP_VERSION=%%V"
+if not defined APP_VERSION (
+    echo ERROR: Could not read project version from pom.xml.
+    pause
+    exit /b 1
+)
+set "FACE_APP_VERSION=!APP_VERSION!"
+echo Project version: !APP_VERSION!
+
 call mvn clean package -q -DskipTests
 if errorlevel 1 (
     echo.
@@ -82,8 +109,9 @@ echo Step 3: Creating App Image with jpackage...
     --main-jar !MAIN_JAR! ^
     --main-class com.example.facedetection.Launcher ^
     --dest target/dist ^
+    --app-version !APP_VERSION! ^
     --vendor "Face Recognition" ^
-    --java-options "-XX:+UseSerialGC -Xms32m -Xmx320m -XX:+UseStringDeduplication" ^
+    --java-options "--enable-native-access=ALL-UNNAMED -XX:+UseSerialGC -Xms32m -Xmx320m -XX:+UseStringDeduplication" ^
     --jlink-options "--strip-debug --no-header-files --no-man-pages --strip-native-commands --compress zip-9"
 if errorlevel 1 (
     echo.
@@ -93,12 +121,6 @@ if errorlevel 1 (
 )
 echo App Image created successfully.
 echo.
-
-REM Remove unused model file from app image
-echo Step 2b: Cleaning up unused files...
-if exist "target\dist\FaceRecognition\app\haarcascade_frontalface_default.xml" (
-    del "target\dist\FaceRecognition\app\haarcascade_frontalface_default.xml"
-)
 
 echo Step 4: Compiling Installer with Inno Setup...
 echo Searching for ISCC.exe...
