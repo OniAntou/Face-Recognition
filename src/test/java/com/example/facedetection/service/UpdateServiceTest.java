@@ -16,9 +16,9 @@ class UpdateServiceTest {
                 new SecurityService(path -> SecurityService.VerificationResult.invalid("not used")));
         String body = "{\"assets\":["
                 + "{\"name\":\"FaceRecognition_Setup.exe\",\"browser_download_url\":"
-                + "\"https://github.com/OniAntou/Face-Recognition/releases/download/v1.2.3/FaceRecognition_Setup.exe\"},"
+                + "\"https://github.com/OniAntou/Face-Recognition/releases/download/v1.2.4/FaceRecognition_Setup.exe\"},"
                 + "{\"name\":\"checksums.sha256\",\"browser_download_url\":"
-                + "\"https://github.com/OniAntou/Face-Recognition/releases/download/v1.2.3/checksums.sha256\"}]}";
+                + "\"https://github.com/OniAntou/Face-Recognition/releases/download/v1.2.4/checksums.sha256\"}]}";
 
         assertEquals(2, service.parseAssets(body).size());
         assertTrue(UpdateService.isChecksumAsset("checksums.sha256"));
@@ -35,5 +35,11 @@ class UpdateServiceTest {
 
         assertEquals(Optional.of(expected),
                 service.parseChecksum(content, "FaceRecognition_Setup.exe"));
+    }
+
+    @Test
+    void allowsEnoughTimeToDownloadBundledInstaller() {
+        assertTrue(AppConfig.getInstance().updateDownloadTimeoutSeconds >= 600,
+                "The bundled installer must have enough time to download on a normal connection");
     }
 }

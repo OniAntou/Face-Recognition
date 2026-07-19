@@ -499,9 +499,10 @@ public class ViewController {
                     Platform.exit();
                 },
                 error -> Platform.runLater(() -> {
-                    statusLabel.setText("Update failed. Try again later.");
+                    String detail = error == null || error.isBlank() ? "Unknown error" : error;
+                    statusLabel.setText("Update failed: " + detail);
                     statusLabel.setDisable(false);
-                    logger.error("Update failed: {}", error);
+                    logger.error("Update failed: {}", detail);
                 })
         );
     }

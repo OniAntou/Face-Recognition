@@ -144,7 +144,7 @@ public class AppConfig {
         imageDisplayMaxWidth = getInt("image.display.max.width", 640);
 
         updateCheckTimeoutSeconds = getInt("update.check.timeout.seconds", 5);
-        updateDownloadTimeoutSeconds = getInt("update.download.timeout.seconds", 30);
+        updateDownloadTimeoutSeconds = getInt("update.download.timeout.seconds", 600);
         updateRequireAuthenticode = getBoolean("update.require.authenticode", true);
         updateGithubApiUrl = getString("update.github.api.url",
                 "https://api.github.com/repos/OniAntou/Face-Recognition/releases/latest");

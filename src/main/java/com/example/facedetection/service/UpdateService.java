@@ -295,7 +295,10 @@ public class UpdateService {
 
     private void launchInstaller(String installerPath) throws Exception {
         logger.info("Launching verified installer: {}", installerPath);
-        new ProcessBuilder(installerPath, "/SILENT", "/SP-", "/CLOSEAPPLICATIONS")
+        // Do not pass Inno Setup-only switches here. The no-extra-install fallback
+        // uses Windows IExpress, whose package owns elevation and application
+        // shutdown itself; both installer backends work with the bare path.
+        new ProcessBuilder(installerPath)
                 .inheritIO()
                 .start();
         Thread.sleep(1000);

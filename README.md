@@ -1,6 +1,6 @@
 # Face Recognition & Analysis
 
-Face detection and gender-classification desktop application built with Java 25, JavaFX, OpenCV, and ONNX Runtime. The current release version is **1.2.3**.
+Face detection and gender-classification desktop application built with Java 25, JavaFX, OpenCV, and ONNX Runtime. The current release version is **1.2.4**.
 
 ## Features
 
@@ -61,7 +61,7 @@ The script does not terminate a running application automatically. Close Face Re
 
 ## Configuration
 
-Edit [`src/main/resources/application.properties`](src/main/resources/application.properties) for camera, detection, tracker, preprocessing, and updater settings. Gender predictions below `detection.gender.min.confidence` are shown as `Unknown`, and recent predictions are stabilized with `detection.gender.vote.window`. Update verification always requires a matching SHA-256 checksum. Authenticode verification is controlled by `update.require.authenticode`: keep it `true` for public signed releases; the current personal build uses `false` so the built-in IExpress fallback installer can still be verified by checksum. Trusted signer subject/thumbprint constraints apply when Authenticode verification is enabled.
+Edit [`src/main/resources/application.properties`](src/main/resources/application.properties) for camera, detection, tracker, preprocessing, and updater settings. Gender predictions below `detection.gender.min.confidence` are shown as `Unknown`, and recent predictions are stabilized with `detection.gender.vote.window`. Update verification always requires a matching SHA-256 checksum. The bundled installer download timeout is 600 seconds to accommodate the JRE, native libraries, and AI models. Authenticode verification is controlled by `update.require.authenticode`: keep it `true` for public signed releases; the current personal build uses `false` so the built-in IExpress fallback installer can still be verified by checksum. Trusted signer subject/thumbprint constraints apply when Authenticode verification is enabled.
 
 ## Architecture
 
