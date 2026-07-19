@@ -108,7 +108,7 @@ Implementation details:
 - `SYSTEM STATUS` becomes `Status`.
 - Keep engine and exposure values dynamic; only change their surrounding labels and visual emphasis.
 
-Checkboxes remain native-looking controls with a sage selected state. A selected checkbox uses a solid sage box without a check glyph, while keyboard focus is shown around the box only instead of framing the label. Buttons use flat fills and a one-pixel border; the stop action uses clay without a gradient.
+Checkboxes remain native-looking controls with a sage selected state. A selected checkbox uses a solid sage box with a light check glyph, while an unselected checkbox is an empty paper-colored box. Keyboard focus is shown around the box only instead of framing the label. Buttons use flat fills and a one-pixel border; the stop action uses clay without a gradient.
 
 ## Accessibility and behavior
 
