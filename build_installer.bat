@@ -140,10 +140,48 @@ if exist "%ISCC_PATH%" (
     echo ==========================================
     echo   SUCCESS! Installer ready in 'releases'
     echo ==========================================
+    set "INSTALLER_BUILT=1"
 ) else (
     echo.
-    echo ERROR: Inno Setup 6 not found at %ISCC_PATH%
-    echo Please install Inno Setup 6 or update the path in this script.
-    echo Download: https://jrsoftware.org/isdl.php
+    echo Inno Setup 6 not found. Falling back to the Windows IExpress builder...
+    set "IEXPRESS_PATH=%SystemRoot%\System32\iexpress.exe"
+    if exist "!IEXPRESS_PATH!" (
+        powershell -NoProfile -ExecutionPolicy Bypass -File "installer\build_iexpress.ps1" -AppImage "target\dist\FaceRecognition" -DataDirectory "data" -Output "releases\FaceRecognition_Setup.exe"
+        if errorlevel 1 (
+            echo.
+            echo ERROR: IExpress installer build failed!
+            pause
+            exit /b 1
+        )
+        echo.
+        echo ==========================================
+        echo   SUCCESS! IExpress installer ready in 'releases'
+        echo   Note: this fallback installer is unsigned.
+        echo ==========================================
+        set "INSTALLER_BUILT=1"
+    ) else (
+        echo ERROR: Neither Inno Setup 6 nor Windows IExpress is available.
+        pause
+        exit /b 1
+    )
 )
-pause
+
+if not defined INSTALLER_BUILT (
+    echo ERROR: Installer was not created.
+    pause
+    exit /b 1
+)
+
+powershell -NoProfile -ExecutionPolicy Bypass -File "installer\write-sha256.ps1" -FilePath "releases\FaceRecognition_Setup.exe" -OutputPath "releases\FaceRecognition_Setup.exe.sha256"
+if errorlevel 1 (
+    echo ERROR: Could not create the installer checksum.
+    pause
+    exit /b 1
+)
+
+REM jpackage marks its Windows launcher read-only; clear generated attributes so a later clean build can remove target.
+attrib -R "target\*" /S /D >nul 2>&1
+attrib -R "releases\*" /S /D >nul 2>&1
+
+if /i not "%CI%"=="true" pause
+exit /b 0

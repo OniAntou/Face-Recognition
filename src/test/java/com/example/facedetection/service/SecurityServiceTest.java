@@ -37,7 +37,7 @@ class SecurityServiceTest {
             SecurityService service = new SecurityService(path ->
                     SecurityService.VerificationResult.invalid("unsigned test file"));
             UpdateService updates = new UpdateService(
-                    com.example.facedetection.config.AppConfig.getInstance(), service);
+                    com.example.facedetection.config.AppConfig.getInstance(), service, true);
             String checksum = service.calculateSha256(file.toString());
 
             assertFalse(updates.verifyDownloadedFile(file.toString(), checksum));
@@ -54,11 +54,28 @@ class SecurityServiceTest {
             SecurityService service = new SecurityService(path ->
                     new SecurityService.VerificationResult(true, "signed test file", Optional.empty()));
             UpdateService updates = new UpdateService(
-                    com.example.facedetection.config.AppConfig.getInstance(), service);
+                    com.example.facedetection.config.AppConfig.getInstance(), service, true);
             String checksum = service.calculateSha256(file.toString());
 
             assertTrue(updates.verifyDownloadedFile(file.toString(), checksum));
             assertFalse(updates.verifyDownloadedFile(file.toString(), "0".repeat(64)));
+        } finally {
+            Files.deleteIfExists(file);
+        }
+    }
+
+    @Test
+    void checksumOnlyModeAcceptsUnsignedExecutableWhenExplicitlyConfigured() throws Exception {
+        Path file = Files.createTempFile("FaceRecognition_Setup_", ".exe");
+        Files.write(file, new byte[10 * 1024 * 1024]);
+        try {
+            SecurityService service = new SecurityService(path ->
+                    SecurityService.VerificationResult.invalid("unsigned test file"));
+            UpdateService updates = new UpdateService(
+                    com.example.facedetection.config.AppConfig.getInstance(), service);
+            String checksum = service.calculateSha256(file.toString());
+
+            assertTrue(updates.verifyDownloadedFile(file.toString(), checksum));
         } finally {
             Files.deleteIfExists(file);
         }

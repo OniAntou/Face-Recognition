@@ -78,7 +78,7 @@ The root remains a `BorderPane` at the existing 1280 x 800 preferred size.
 |                       |                           |                            |
 | Engine: Idle         |                           |                            |
 +----------------------+---------------------------------------------------------+
-| System ready                                      Exposure: Ready   v1.2.2    |
+| System ready                                      Exposure: Ready   v1.2.3    |
 +--------------------------------------------------------------------------------+
 ```
 

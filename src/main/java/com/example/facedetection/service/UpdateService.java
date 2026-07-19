@@ -24,8 +24,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Checks GitHub releases and installs only an executable whose checksum and
- * Authenticode signature have both been verified.
+ * Checks GitHub releases and installs only an executable whose checksum has
+ * been verified. Authenticode verification is configurable for environments
+ * that cannot publish a signed installer.
  */
 public class UpdateService {
 
@@ -40,6 +41,7 @@ public class UpdateService {
 
     private final AppConfig config;
     private final SecurityService securityService;
+    private final boolean requireAuthenticode;
 
     private volatile boolean updateAvailable;
     private volatile String downloadUrl;
@@ -51,8 +53,13 @@ public class UpdateService {
     }
 
     public UpdateService(AppConfig config, SecurityService securityService) {
+        this(config, securityService, config.updateRequireAuthenticode);
+    }
+
+    UpdateService(AppConfig config, SecurityService securityService, boolean requireAuthenticode) {
         this.config = config;
         this.securityService = securityService;
+        this.requireAuthenticode = requireAuthenticode;
     }
 
     /** Checks the configured GitHub release endpoint asynchronously. */
@@ -274,10 +281,14 @@ public class UpdateService {
             return false;
         }
 
-        SecurityService.VerificationResult signature = securityService.verifyDigitalSignature(filePath);
-        if (!signature.isValid()) {
-            logger.error("Digital signature verification failed: {}", signature.getMessage());
-            return false;
+        if (requireAuthenticode) {
+            SecurityService.VerificationResult signature = securityService.verifyDigitalSignature(filePath);
+            if (!signature.isValid()) {
+                logger.error("Digital signature verification failed: {}", signature.getMessage());
+                return false;
+            }
+        } else {
+            logger.warn("Authenticode verification is disabled by update configuration");
         }
         return true;
     }

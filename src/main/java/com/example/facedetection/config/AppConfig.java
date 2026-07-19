@@ -66,6 +66,7 @@ public class AppConfig {
     // Update settings
     public final int updateCheckTimeoutSeconds;
     public final int updateDownloadTimeoutSeconds;
+    public final boolean updateRequireAuthenticode;
     public final String updateGithubApiUrl;
     public final String updateTrustedSignerSubject;
     public final String updateTrustedSignerThumbprint;
@@ -144,6 +145,7 @@ public class AppConfig {
 
         updateCheckTimeoutSeconds = getInt("update.check.timeout.seconds", 5);
         updateDownloadTimeoutSeconds = getInt("update.download.timeout.seconds", 30);
+        updateRequireAuthenticode = getBoolean("update.require.authenticode", true);
         updateGithubApiUrl = getString("update.github.api.url",
                 "https://api.github.com/repos/OniAntou/Face-Recognition/releases/latest");
         updateTrustedSignerSubject = getString("update.trusted.signer.subject", "");
@@ -195,6 +197,21 @@ public class AppConfig {
 
     private String getString(String key, String defaultValue) {
         return properties.getProperty(key, defaultValue);
+    }
+
+    private boolean getBoolean(String key, boolean defaultValue) {
+        String value = properties.getProperty(key);
+        if (value == null || value.isBlank()) {
+            return defaultValue;
+        }
+        if ("true".equalsIgnoreCase(value.trim())) {
+            return true;
+        }
+        if ("false".equalsIgnoreCase(value.trim())) {
+            return false;
+        }
+        logger.warn("Invalid boolean value for {}: {}, using default {}", key, value, defaultValue);
+        return defaultValue;
     }
 
     private int getInt(String key, int defaultValue) {

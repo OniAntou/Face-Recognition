@@ -1,6 +1,6 @@
 # Face Recognition & Analysis
 
-Face detection and gender-classification desktop application built with Java 25, JavaFX, OpenCV, and ONNX Runtime. The current release version is **1.2.2**.
+Face detection and gender-classification desktop application built with Java 25, JavaFX, OpenCV, and ONNX Runtime. The current release version is **1.2.3**.
 
 ## Features
 
@@ -8,7 +8,7 @@ Face detection and gender-classification desktop application built with Java 25,
 - Optional Levi-Hassner gender classification with validated landmark alignment, confidence gating, and temporal voting.
 - Bright-light preprocessing, adaptive camera exposure, tracking, and FPS metrics.
 - Model-path resolution that works from a checkout and from the packaged Windows app.
-- Fail-closed update verification using SHA-256 and Windows Authenticode.
+- Fail-closed update verification using SHA-256, with optional Windows Authenticode enforcement.
 - Windows installer build with bundled models and JRE.
 
 ## Requirements
@@ -17,7 +17,8 @@ Face detection and gender-classification desktop application built with Java 25,
 |------|---------|
 | JDK | 25 |
 | Maven | 3.9+ |
-| Inno Setup | 6, only for the installer |
+| Inno Setup | 6, optional preferred installer backend |
+| Windows IExpress | Built-in fallback installer backend |
 
 ## Model layout
 
@@ -54,13 +55,13 @@ java -cp "target/classes;target/dependency/*" com.example.facedetection.cli.Face
 
 ## Build the Windows installer
 
-Run `build_installer.bat` from the repository root. The script reads the version from `pom.xml`, locates a JDK with `jpackage`, builds the app image, and invokes Inno Setup when it is installed.
+Run `build_installer.bat` from the repository root. The script reads the version from `pom.xml`, locates a JDK with `jpackage`, builds the app image, and uses Inno Setup when it is installed. If Inno Setup is unavailable, it falls back to the Windows IExpress tool already included with Windows and writes a matching SHA-256 file beside the installer.
 
 The script does not terminate a running application automatically. Close Face Recognition before compiling an installer.
 
 ## Configuration
 
-Edit [`src/main/resources/application.properties`](src/main/resources/application.properties) for camera, detection, tracker, preprocessing, and updater settings. Gender predictions below `detection.gender.min.confidence` are shown as `Unknown`, and recent predictions are stabilized with `detection.gender.vote.window`. Update verification always requires a checksum and a valid Authenticode signature; trusted signer subject/thumbprint constraints can be configured when the release certificate is known.
+Edit [`src/main/resources/application.properties`](src/main/resources/application.properties) for camera, detection, tracker, preprocessing, and updater settings. Gender predictions below `detection.gender.min.confidence` are shown as `Unknown`, and recent predictions are stabilized with `detection.gender.vote.window`. Update verification always requires a matching SHA-256 checksum. Authenticode verification is controlled by `update.require.authenticode`: keep it `true` for public signed releases; the current personal build uses `false` so the built-in IExpress fallback installer can still be verified by checksum. Trusted signer subject/thumbprint constraints apply when Authenticode verification is enabled.
 
 ## Architecture
 
@@ -87,7 +88,7 @@ The suite covers model loading, path resolution, detector/pipeline behavior, nat
 
 ## Security note
 
-An update release must provide an executable asset and a matching SHA-256 checksum asset. The updater rejects missing or mismatched checksums, unsigned installers, invalid signatures, unsupported verification, and URLs that were not selected during the update check.
+An update release must provide an executable asset and a matching SHA-256 checksum asset. The updater rejects missing or mismatched checksums, unsupported verification, and URLs that were not selected during the update check. When `update.require.authenticode=true`, unsigned installers and invalid signatures are rejected as well.
 
 ## License
 

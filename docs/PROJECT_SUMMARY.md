@@ -1,7 +1,7 @@
 # Face Recognition Project Summary
 
 **Updated:** 2026-07-19
-**Release version:** 1.2.2
+**Release version:** 1.2.3
 **Status:** Runtime, release-hardening, and UI presentation changes implemented; signed installer packaging remains a separate operator step.
 
 ## What was fixed
@@ -22,10 +22,11 @@
 ### Security and release
 
 - Updater release parsing now requires an executable and a matching SHA-256 asset.
-- Download verification requires a valid checksum and valid Authenticode signature; failures stop installation.
-- Authenticode verification uses non-interactive Windows PowerShell and supports optional trusted signer constraints.
-- Version `1.2.2` is shared by Maven, filtered FXML resources, jpackage, and the Inno Setup build script.
-- The `v1.2.2` code release is kept separate from `Latest` until a signed installer and matching checksum asset are available.
+- Download verification always requires a valid checksum; Authenticode verification is enforced when `update.require.authenticode=true`.
+- Authenticode verification uses non-interactive Windows PowerShell and supports optional trusted signer constraints when enabled.
+- The current personal build sets `update.require.authenticode=false` so a checksum-verified unsigned installer can be used without an additional signing tool or certificate.
+- Version `1.2.3` is shared by Maven, filtered FXML resources, jpackage, and the installer build scripts.
+- The `v1.2.3` release can use the Windows IExpress fallback with a matching SHA-256 asset; Authenticode remains optional for this personal build.
 - Installer packaging includes the Haar cascade, no longer force-kills the application, and no longer depends on a user-specific JDK path.
 - Packaged/test JVMs enable native access explicitly.
 
@@ -63,7 +64,7 @@ mvn clean test
 
 Result on 2026-07-19:
 
-- 77 tests executed.
+- 78 tests executed.
 - 0 failures and 0 errors.
 - 4 camera tests skipped because camera index 0 is unavailable on the verification machine.
 - The real bundled YOLO model initialized successfully with ONNX Runtime 1.20.0.
@@ -78,10 +79,10 @@ mvn clean verify
 mvn clean package -DskipTests
 ```
 
-For a Windows installer, close the application and run `build_installer.bat` from the project root. The script requires a JDK containing `jpackage` and Inno Setup 6.
+For a Windows installer, close the application and run `build_installer.bat` from the project root. The script requires a JDK containing `jpackage`; it prefers Inno Setup 6 and otherwise uses the Windows IExpress fallback.
 
 ## Known operational requirements
 
-- The updater intentionally rejects releases without checksum assets or valid Authenticode signatures.
+- The updater intentionally rejects releases without checksum assets. Authenticode failures are also rejected when `update.require.authenticode=true`.
 - Camera integration requires a real camera device.
 - The packaged installer must be compiled and manually exercised by the release operator; this code review did not launch the GUI, camera, or installer automatically.

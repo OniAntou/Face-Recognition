@@ -70,7 +70,7 @@ Actions:
 
 1. Parse the executable and matching SHA-256 release assets and retain the checksum with the checked URL.
 2. Implement strict checksum normalization/comparison and a real non-interactive Windows Authenticode verification adapter.
-3. Make missing checksum, invalid signature, unsupported verifier, download mismatch, and invalid file type fail closed.
+3. Make missing checksum, unsupported verifier, download mismatch, and invalid file type fail closed; make Authenticode rejection configurable for unsigned personal releases.
 4. Inject verification dependencies where needed so tests never execute an installer.
 5. Use the Maven project version for the UI, installer, and build output; remove stale version strings.
 6. Remove hard-coded `JAVA_HOME`, force-kill behavior, and omitted Haar packaging from the installer workflow.

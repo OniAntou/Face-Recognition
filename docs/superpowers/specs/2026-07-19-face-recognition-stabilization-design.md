@@ -77,7 +77,7 @@ The release parser will select the executable asset and its matching SHA-256 che
 - an optional configured signer identity check when a trusted subject/thumbprint is supplied;
 - an explicit unsupported-platform/verification-error result rather than an optimistic success.
 
-`UpdateService.verifyDownloadedFile` will fail if the file is missing, unexpectedly small, the checksum is absent/mismatched, or Authenticode verification is not valid. Only after all checks pass may the installer be launched. Download and verification tests will use injectable verification components or local fixtures and will never launch an installer.
+`UpdateService.verifyDownloadedFile` will fail if the file is missing, unexpectedly small, or the checksum is absent/mismatched. When `update.require.authenticode=true`, it will also fail for an invalid or unavailable Authenticode signature. Only after all configured checks pass may the installer be launched. Download and verification tests will use injectable verification components or local fixtures and will never launch an installer.
 
 ### 3.6 Versioning and installer build
 
@@ -86,7 +86,7 @@ Use the Maven project version as the release version source. The packaged UI and
 `build_installer.bat` will:
 
 - use an existing valid `JAVA_HOME`, otherwise resolve Java from `PATH`;
-- fail with a clear message when `jpackage` or Inno Setup is unavailable;
+- fail with a clear message when `jpackage` and the built-in IExpress fallback are unavailable;
 - stop deleting/force-killing a running user process automatically;
 - include `--enable-native-access=ALL-UNNAMED` in the packaged JVM options;
 - retain only scoped build-output cleanup.
@@ -125,7 +125,7 @@ Each subproject will be tested before the next begins. If a model/runtime depend
 - A missing optional gender model cannot crash frame processing.
 - Background processing does not read JavaFX controls or block selected-image UI processing.
 - Empty matrices borrowed from `MatPool` are returned without increasing active counts.
-- Invalid, unsigned, checksum-less, or checksum-mismatched installers are rejected by the updater.
+- Invalid, checksum-less, or checksum-mismatched installers are rejected by the updater; unsigned installers are rejected when strict Authenticode mode is enabled.
 - The installer script no longer depends on `C:\Users\USER\.jdk\jdk-25`, force-kills the app, or omits an advertised model.
 - Project documents describe the current version, tests, paths, limitations, and build workflow accurately.
 - The final repository diff contains only intentional source, test, build, CI, and documentation changes.

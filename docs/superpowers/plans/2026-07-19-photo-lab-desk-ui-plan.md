@@ -42,7 +42,7 @@ mvn -q -DskipTests process-resources
 Select-String -Path target\classes\com\example\facedetection\scene.fxml -Pattern 'v1\.2\.2'
 ~~~
 
-Expected: Maven succeeds and the filtered FXML contains v1.2.2.
+Expected: Maven succeeds and the filtered FXML contains v1.2.3.
 
 ## Task 2: Recompose the FXML for a calm photo workstation
 
@@ -211,7 +211,7 @@ Expected: compile succeeds with no controller method or field wiring errors.
 
 - [x] Step 1: Update the project summary
 
-Add a bullet stating that the JavaFX presentation was redesigned as the Photo Lab Desk UI: warm light workspace, dark monitor viewports, flat controls, and sentence-case English copy. Keep the existing 75-test count unless code changes alter it.
+Add a bullet stating that the JavaFX presentation was redesigned as the Photo Lab Desk UI: warm light workspace, dark monitor viewports, flat controls, and sentence-case English copy. Keep the verification test count current when later code changes add coverage.
 
 - [x] Step 2: Run resource and test verification
 
@@ -225,9 +225,9 @@ git diff --check
 ~~~
 
 Expected:
-- 77 tests pass with 0 failures/errors; camera skips remain hardware-aware.
-- mvn clean verify succeeds and packages target\opencv-demo-1.2.2.jar.
-- Filtered FXML contains v1.2.2.
+- 78 tests pass with 0 failures/errors; camera skips remain hardware-aware.
+- mvn clean verify succeeds and packages target\opencv-demo-1.2.3.jar.
+- Filtered FXML contains v1.2.3.
 - git diff --check produces no whitespace errors.
 
 - [x] Step 3: Review project documents for stale UI claims
