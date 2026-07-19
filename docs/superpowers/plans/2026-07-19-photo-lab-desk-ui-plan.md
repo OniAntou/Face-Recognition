@@ -7,6 +7,7 @@
 **Architecture:** Keep the existing JavaFX BorderPane and UIManager contract. Make the redesign through FXML/CSS changes, with a small UIManager copy/style cleanup for dynamic camera state and update notifications. No detection or service code changes are required.
 
 **Tech Stack:** Java 25, JavaFX FXML, JavaFX CSS, Maven/Surefire, existing OpenCV integration tests.
+**Status:** Implemented and verified.
 
 ---
 
@@ -26,13 +27,13 @@
 - Read src/main/java/com/example/facedetection/ui/UIManager.java
 - Read src/main/java/com/example/facedetection/controller/ViewController.java
 
-- [ ] Step 1: Preserve the controller contract before editing
+- [x] Step 1: Preserve the controller contract before editing
 
 Keep these FXML IDs exactly: cameraSelector, cameraButton, insertImageButton, adaptiveExposureCheckBox, brightLightModeCheckBox, genderRecognitionCheckBox, engineLabel, fpsLabel, exposureStatusLabel, originalImageView, processedImageView, sourceViewport, resultViewport, sourceCard, and statusLabel.
 
 Keep these handlers exactly: #toggleCamera, #selectImage, #handleAdaptiveExposureToggle, #handleBrightLightModeToggle, and #handleGenderRecognitionToggle.
 
-- [ ] Step 2: Run the current resource baseline
+- [x] Step 2: Run the current resource baseline
 
 Run:
 
@@ -48,7 +49,7 @@ Expected: Maven succeeds and the filtered FXML contains v1.2.1.
 **Files:**
 - Modify src/main/resources/com/example/facedetection/scene.fxml
 
-- [ ] Step 1: Update the top header copy
+- [x] Step 1: Update the top header copy
 
 Keep headerBar, appTitle, appSubtitle, and fpsLabel. Change the visible copy to:
 
@@ -59,7 +60,7 @@ Keep headerBar, appTitle, appSubtitle, and fpsLabel. Change the visible copy to:
 
 Keep the FPS value dynamic and label its small caption Performance in sentence case.
 
-- [ ] Step 2: Simplify the control rail copy and grouping
+- [x] Step 2: Simplify the control rail copy and grouping
 
 Keep the existing sidebar and all control IDs. Change labels to:
 
@@ -77,7 +78,7 @@ Keep the existing sidebar and all control IDs. Change labels to:
 
 Keep checkbox defaults and handlers unchanged. Change SYSTEM STATUS to Status and keep the dynamic engineLabel text and status dot.
 
-- [ ] Step 3: Make image panel headings human-facing
+- [x] Step 3: Make image panel headings human-facing
 
 Keep both image cards and their existing IDs. Change headings and static status labels to:
 
@@ -89,11 +90,11 @@ Keep both image cards and their existing IDs. Change headings and static status 
 
 Keep exposureStatusLabel in the result header unless moving it to the footer is necessary; style it as quiet metadata rather than a badge.
 
-- [ ] Step 4: Simplify the footer
+- [x] Step 4: Simplify the footer
 
 Keep footerBar, statusLabel, and the filtered version label. Do not create a second label with the same fx:id. The footer should be a compact status strip, not a dashboard metric row.
 
-- [ ] Step 5: Validate FXML wiring statically
+- [x] Step 5: Validate FXML wiring statically
 
 Run:
 
@@ -108,7 +109,7 @@ Expected: every ID and handler from Task 1 remains present and no old all-caps m
 **Files:**
 - Modify src/main/resources/com/example/facedetection/styles.css
 
-- [ ] Step 1: Define the Photo Lab Desk palette
+- [x] Step 1: Define the Photo Lab Desk palette
 
 Replace the current dark-purple variables with these exact tokens:
 
@@ -126,11 +127,11 @@ Replace the current dark-purple variables with these exact tokens:
 
 Set root typography to Segoe UI with background color-desk. Use Georgia only for appTitle.
 
-- [ ] Step 2: Flatten the shell and panels
+- [x] Step 2: Flatten the shell and panels
 
 Set headerBar, sidebar, and footerBar to color-paper with color-line borders. Use 1 px borders, no drop shadows, and 12-16 px spacing. Keep the sidebar narrower and visually quiet instead of making it a dark block.
 
-- [ ] Step 3: Style action controls without AI-dashboard effects
+- [x] Step 3: Style action controls without AI-dashboard effects
 
 Use flat sage fill for btn-primary, flat clay fill for btn-danger, and paper fill with a line border for btn-secondary. Remove all gradients and dropshadow declarations. Keep hover and keyboard focus visible through fill and border changes:
 
@@ -145,15 +146,15 @@ Use flat sage fill for btn-primary, flat clay fill for btn-danger, and paper fil
 }
 ~~~
 
-- [ ] Step 4: Style photo viewports as dark monitors
+- [x] Step 4: Style photo viewports as dark monitors
 
 Use color-monitor for image-viewport, a modest 8-10 px radius, and a thin color-line frame. Keep view-card paper-colored with a 1 px border and no shadow. This contrast is the signature visual detail.
 
-- [ ] Step 5: Style labels, toggles, status, and combo box
+- [x] Step 5: Style labels, toggles, status, and combo box
 
 Use sentence-case typography, color-ink for primary text, color-muted-ink for metadata, sage for selected toggles/status, and clay for danger/update attention. Remove all-caps styling from section headings. Add status-caption and status-update classes if referenced by FXML or UIManager.
 
-- [ ] Step 6: Check CSS for removed visual patterns
+- [x] Step 6: Check CSS for removed visual patterns
 
 Run:
 
@@ -169,7 +170,7 @@ Expected: no gradient, glow shadow, old purple token, or text-transform rule rem
 - Modify src/main/java/com/example/facedetection/ui/UIManager.java
 - Modify src/main/resources/com/example/facedetection/styles.css if a new state class is referenced.
 
-- [ ] Step 1: Remove decorative start/stop glyphs
+- [x] Step 1: Remove decorative start/stop glyphs
 
 Change the two dynamic labels to plain action text:
 
@@ -180,11 +181,11 @@ cameraButton.setText("Start Camera");
 
 Keep primary/danger class swapping exactly as-is.
 
-- [ ] Step 2: Use a CSS class for update attention
+- [x] Step 2: Use a CSS class for update attention
 
 In showUpdateNotification, add status-update to statusLabel.getStyleClass() and keep the click handler. In resetStatusStyle, remove status-update before clearing the click handler. Do not use an inline color style.
 
-- [ ] Step 3: Verify dynamic IDs and state methods compile
+- [x] Step 3: Verify dynamic IDs and state methods compile
 
 Run:
 
@@ -199,11 +200,11 @@ Expected: compile succeeds with no controller method or field wiring errors.
 **Files:**
 - Modify docs/PROJECT_SUMMARY.md
 
-- [ ] Step 1: Update the project summary
+- [x] Step 1: Update the project summary
 
 Add a bullet stating that the JavaFX presentation was redesigned as the Photo Lab Desk UI: warm light workspace, dark monitor viewports, flat controls, and sentence-case English copy. Keep the existing 75-test count unless code changes alter it.
 
-- [ ] Step 2: Run resource and test verification
+- [x] Step 2: Run resource and test verification
 
 Run:
 
@@ -220,7 +221,7 @@ Expected:
 - Filtered FXML contains v1.2.1.
 - git diff --check produces no whitespace errors.
 
-- [ ] Step 3: Review project documents for stale UI claims
+- [x] Step 3: Review project documents for stale UI claims
 
 Run:
 
@@ -230,7 +231,7 @@ rg -n "AI dashboard|purple|Advanced AI Vision|AI ANALYSIS RESULT|CONTROL PANEL|S
 
 Expected: only historical design/spec references may mention old labels. Active README and project summary must describe the Photo Lab Desk direction and current test count.
 
-- [ ] Step 4: Commit the implementation
+- [x] Step 4: Commit the implementation
 
 ~~~powershell
 git add src/main/resources/com/example/facedetection/scene.fxml src/main/resources/com/example/facedetection/styles.css src/main/java/com/example/facedetection/ui/UIManager.java docs/PROJECT_SUMMARY.md

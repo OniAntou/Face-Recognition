@@ -2,7 +2,7 @@
 
 **Updated:** 2026-07-19
 **Release version:** 1.2.1
-**Status:** Runtime and release-hardening changes implemented; installer execution remains a separate operator step.
+**Status:** Runtime, release-hardening, and UI presentation changes implemented; installer execution remains a separate operator step.
 
 ## What was fixed
 
@@ -17,6 +17,7 @@
 - Connected adaptive exposure to the camera capture loop and improved camera shutdown/error cleanup.
 - Corrected `MatPool` ownership and empty-matrix return behavior.
 - Replaced unsafe directory string-prefix checks with normalized path-boundary checks.
+- Redesigned the JavaFX presentation as a Photo Lab Desk UI with a warm light workspace, dark monitor viewports, flat controls, and sentence-case English copy.
 
 ### Security and release
 

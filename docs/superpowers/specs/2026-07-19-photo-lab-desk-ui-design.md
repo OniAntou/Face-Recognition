@@ -1,7 +1,7 @@
 # Photo Lab Desk UI Redesign
 
 **Date:** 2026-07-19
-**Status:** Approved direction; implementation pending spec review
+**Status:** Implemented and verified
 **Scope:** JavaFX presentation layer in `scene.fxml` and `styles.css`, with only the controller-facing IDs and labels needed to support the visual redesign.
 
 ## Intent

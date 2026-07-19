@@ -20,46 +20,46 @@
             fx:controller="com.example.facedetection.controller.ViewController">
 
     <left>
-        <VBox spacing="20" styleClass="sidebar">
-            <Label text="CONTROL PANEL" styleClass="sidebar-section-title" />
-            
-            <VBox spacing="12">
-                <Label text="Primary Source" styleClass="stat-label" />
+        <VBox spacing="16" styleClass="sidebar">
+            <Label text="Camera" styleClass="sidebar-section-title" />
+
+            <VBox spacing="10" styleClass="control-group">
+                <Label text="Camera source" styleClass="stat-label" />
                 <ComboBox fx:id="cameraSelector" maxWidth="Infinity"
-                          promptText="Select Device" styleClass="combo-box" />
+                          promptText="Select device" styleClass="combo-box" />
                 <Button fx:id="cameraButton" onAction="#toggleCamera"
                         maxWidth="Infinity" text="Start Camera"
                         styleClass="btn-primary" />
                 <Button fx:id="insertImageButton" onAction="#selectImage"
-                        maxWidth="Infinity" text="Upload Image"
+                        maxWidth="Infinity" text="Open image"
                         styleClass="btn-secondary" />
             </VBox>
 
             <Separator styleClass="card-separator" />
 
-            <Label text="AI PIPELINE SETTINGS" styleClass="sidebar-section-title" />
-            <VBox spacing="14">
+            <Label text="Processing options" styleClass="sidebar-section-title" />
+            <VBox spacing="12" styleClass="control-group">
                 <CheckBox fx:id="adaptiveExposureCheckBox"
                           onAction="#handleAdaptiveExposureToggle"
                           selected="true"
                           styleClass="toggle-chip"
-                          text="Adaptive Exposure" />
+                          text="Adaptive light" />
                 <CheckBox fx:id="brightLightModeCheckBox"
                           onAction="#handleBrightLightModeToggle"
                           selected="true"
                           styleClass="toggle-chip"
-                          text="Bright-Light Mode" />
+                          text="Bright-light correction" />
                 <CheckBox fx:id="genderRecognitionCheckBox"
                           onAction="#handleGenderRecognitionToggle"
                           selected="false"
                           styleClass="toggle-chip"
-                          text="Gender Recognition" />
+                          text="Show gender labels" />
             </VBox>
 
             <Region VBox.vgrow="ALWAYS" />
 
-            <VBox spacing="10" styleClass="stat-card">
-                <Label text="SYSTEM STATUS" styleClass="stat-label" />
+            <VBox spacing="8" styleClass="stat-card">
+                <Label text="Status" styleClass="stat-label" />
                 <HBox spacing="10" alignment="CENTER_LEFT">
                     <Region styleClass="status-dot-active" />
                     <Label fx:id="engineLabel" text="Engine: Idle" styleClass="stat-value" />
@@ -70,66 +70,62 @@
 
     <top>
         <HBox id="headerBar" alignment="CENTER_LEFT" spacing="24">
-            <VBox alignment="CENTER_LEFT">
-                <Label id="appTitle" text="Face Recognition Pro" />
-                <Label id="appSubtitle" text="Advanced AI Vision &amp; Real-time Analysis" />
+            <VBox alignment="CENTER_LEFT" spacing="4">
+                <Label id="appTitle" text="Face Recognition" />
+                <Label id="appSubtitle" text="Live camera and image review" />
             </VBox>
             <Region HBox.hgrow="ALWAYS" />
-            <HBox spacing="12" alignment="CENTER_RIGHT">
-                <VBox alignment="CENTER_RIGHT" spacing="2">
-                    <Label fx:id="fpsLabel" styleClass="stat-value" text="-- FPS" />
-                    <Label text="PERFORMANCE" styleClass="stat-label" />
-                </VBox>
-            </HBox>
+            <VBox alignment="CENTER_RIGHT" spacing="3" styleClass="header-metric">
+                <Label fx:id="fpsLabel" styleClass="stat-value" text="FPS: --" />
+                <Label text="Performance" styleClass="stat-label" />
+            </VBox>
         </HBox>
     </top>
 
     <center>
-        <HBox id="contentArea" spacing="28" alignment="CENTER">
+        <HBox id="contentArea" spacing="18" alignment="CENTER">
             <padding>
-                <Insets bottom="32.0" left="32.0" right="32.0" top="32.0" />
+                <Insets bottom="22.0" left="22.0" right="22.0" top="22.0" />
             </padding>
 
-            <!-- Source Card -->
             <VBox fx:id="sourceCard" HBox.hgrow="ALWAYS" alignment="TOP_CENTER"
-                  spacing="16" styleClass="view-card">
+                  spacing="12" styleClass="view-card">
                 <HBox alignment="CENTER_LEFT" spacing="10">
-                    <Label text="SOURCE INPUT" styleClass="card-header" />
+                    <Label text="Source image" styleClass="card-header" />
                     <Region HBox.hgrow="ALWAYS" />
-                    <Label text="LIVE" styleClass="stat-label" style="-fx-text-fill: -color-accent-success;" />
+                    <Label text="Live" styleClass="status-caption" />
                 </HBox>
                 <StackPane fx:id="sourceViewport" VBox.vgrow="ALWAYS" styleClass="image-viewport">
                     <ImageView fx:id="originalImageView"
                                pickOnBounds="true" preserveRatio="true" smooth="true" />
                 </StackPane>
                 <padding>
-                    <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
+                    <Insets bottom="16.0" left="16.0" right="16.0" top="16.0" />
                 </padding>
             </VBox>
 
-            <!-- Result Card -->
             <VBox HBox.hgrow="ALWAYS" alignment="TOP_CENTER"
-                  spacing="16" styleClass="view-card">
+                  spacing="12" styleClass="view-card">
                 <HBox alignment="CENTER_LEFT" spacing="10">
-                    <Label text="AI ANALYSIS RESULT" styleClass="card-header" />
+                    <Label text="Reviewed image" styleClass="card-header" />
                     <Region HBox.hgrow="ALWAYS" />
-                    <Label fx:id="exposureStatusLabel" text="EXPOSURE: OK" styleClass="stat-label" />
+                    <Label fx:id="exposureStatusLabel" text="Exposure: Ready" styleClass="meta-label" />
                 </HBox>
                 <StackPane fx:id="resultViewport" VBox.vgrow="ALWAYS" styleClass="image-viewport">
                     <ImageView fx:id="processedImageView"
                                pickOnBounds="true" preserveRatio="true" smooth="true" />
                 </StackPane>
                 <padding>
-                    <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
+                    <Insets bottom="16.0" left="16.0" right="16.0" top="16.0" />
                 </padding>
             </VBox>
         </HBox>
     </center>
 
     <bottom>
-        <HBox id="footerBar" alignment="CENTER_LEFT" spacing="20">
+        <HBox id="footerBar" alignment="CENTER_LEFT" spacing="10">
             <Region styleClass="status-dot-active" />
-            <Label fx:id="statusLabel" id="statusLabel" text="System Ready" />
+            <Label fx:id="statusLabel" id="statusLabel" text="System ready" />
             <Region HBox.hgrow="ALWAYS" />
             <Label text="v${project.version}" styleClass="meta-label" />
         </HBox>

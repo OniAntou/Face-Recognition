@@ -168,7 +168,7 @@ public class UIManager {
      * Sets camera button state for active camera.
      */
     public void setCameraActive() {
-        cameraButton.setText("\u23F9  Stop Camera");
+        cameraButton.setText("Stop Camera");
         cameraButton.getStyleClass().remove("btn-primary");
         cameraButton.getStyleClass().add("btn-danger");
         sourceCard.setVisible(false);
@@ -179,7 +179,7 @@ public class UIManager {
      * Sets camera button state for inactive camera.
      */
     public void setCameraInactive() {
-        cameraButton.setText("\u23FA  Start Camera");
+        cameraButton.setText("Start Camera");
         cameraButton.getStyleClass().remove("btn-danger");
         cameraButton.getStyleClass().add("btn-primary");
         sourceCard.setVisible(true);
@@ -250,7 +250,8 @@ public class UIManager {
     public void showUpdateNotification(String message, Runnable onClick) {
         Platform.runLater(() -> {
             statusLabel.setText(message);
-            statusLabel.setStyle("-fx-text-fill: #FFCC00; -fx-cursor: hand;");
+            statusLabel.getStyleClass().remove("status-update");
+            statusLabel.getStyleClass().add("status-update");
             statusLabel.setOnMouseClicked(event -> onClick.run());
         });
     }
@@ -259,7 +260,7 @@ public class UIManager {
      * Resets status bar style.
      */
     public void resetStatusStyle() {
-        statusLabel.setStyle("");
+        statusLabel.getStyleClass().remove("status-update");
         statusLabel.setOnMouseClicked(null);
     }
 
