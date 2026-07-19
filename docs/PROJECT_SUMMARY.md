@@ -1,8 +1,8 @@
 # Face Recognition Project Summary
 
 **Updated:** 2026-07-19
-**Release version:** 1.2.1
-**Status:** Runtime, release-hardening, and UI presentation changes implemented; installer execution remains a separate operator step.
+**Release version:** 1.2.2
+**Status:** Runtime, release-hardening, and UI presentation changes implemented; signed installer packaging remains a separate operator step.
 
 ## What was fixed
 
@@ -24,7 +24,8 @@
 - Updater release parsing now requires an executable and a matching SHA-256 asset.
 - Download verification requires a valid checksum and valid Authenticode signature; failures stop installation.
 - Authenticode verification uses non-interactive Windows PowerShell and supports optional trusted signer constraints.
-- Version `1.2.1` is shared by Maven, filtered FXML resources, jpackage, and the Inno Setup build script.
+- Version `1.2.2` is shared by Maven, filtered FXML resources, jpackage, and the Inno Setup build script.
+- The `v1.2.2` code release is kept separate from `Latest` until a signed installer and matching checksum asset are available.
 - Installer packaging includes the Haar cascade, no longer force-kills the application, and no longer depends on a user-specific JDK path.
 - Packaged/test JVMs enable native access explicitly.
 

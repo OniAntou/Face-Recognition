@@ -39,10 +39,10 @@ Run:
 
 ~~~powershell
 mvn -q -DskipTests process-resources
-Select-String -Path target\classes\com\example\facedetection\scene.fxml -Pattern 'v1\.2\.1'
+Select-String -Path target\classes\com\example\facedetection\scene.fxml -Pattern 'v1\.2\.2'
 ~~~
 
-Expected: Maven succeeds and the filtered FXML contains v1.2.1.
+Expected: Maven succeeds and the filtered FXML contains v1.2.2.
 
 ## Task 2: Recompose the FXML for a calm photo workstation
 
@@ -220,14 +220,14 @@ Run:
 ~~~powershell
 mvn clean test
 mvn clean verify
-Select-String -Path target\classes\com\example\facedetection\scene.fxml -Pattern 'v1\.2\.1'
+Select-String -Path target\classes\com\example\facedetection\scene.fxml -Pattern 'v1\.2\.2'
 git diff --check
 ~~~
 
 Expected:
 - 77 tests pass with 0 failures/errors; camera skips remain hardware-aware.
-- mvn clean verify succeeds and packages target\opencv-demo-1.2.1.jar.
-- Filtered FXML contains v1.2.1.
+- mvn clean verify succeeds and packages target\opencv-demo-1.2.2.jar.
+- Filtered FXML contains v1.2.2.
 - git diff --check produces no whitespace errors.
 
 - [x] Step 3: Review project documents for stale UI claims

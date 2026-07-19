@@ -16,9 +16,9 @@ class UpdateServiceTest {
                 new SecurityService(path -> SecurityService.VerificationResult.invalid("not used")));
         String body = "{\"assets\":["
                 + "{\"name\":\"FaceRecognition_Setup.exe\",\"browser_download_url\":"
-                + "\"https://github.com/OniAntou/Face-Recognition/releases/download/v1.2.1/FaceRecognition_Setup.exe\"},"
+                + "\"https://github.com/OniAntou/Face-Recognition/releases/download/v1.2.2/FaceRecognition_Setup.exe\"},"
                 + "{\"name\":\"checksums.sha256\",\"browser_download_url\":"
-                + "\"https://github.com/OniAntou/Face-Recognition/releases/download/v1.2.1/checksums.sha256\"}]}";
+                + "\"https://github.com/OniAntou/Face-Recognition/releases/download/v1.2.2/checksums.sha256\"}]}";
 
         assertEquals(2, service.parseAssets(body).size());
         assertTrue(UpdateService.isChecksumAsset("checksums.sha256"));

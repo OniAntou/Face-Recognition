@@ -1,6 +1,6 @@
 # Face Recognition & Analysis
 
-Face detection and gender-classification desktop application built with Java 25, JavaFX, OpenCV, and ONNX Runtime. The current release version is **1.2.1**.
+Face detection and gender-classification desktop application built with Java 25, JavaFX, OpenCV, and ONNX Runtime. The current release version is **1.2.2**.
 
 ## Features
 
