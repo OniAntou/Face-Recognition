@@ -212,8 +212,14 @@
     -fx-border-width: 2;
 }
 
-.toggle-chip:selected > .box > .mark {
+.toggle-chip > .box > .mark {
     -fx-background-color: transparent;
+    -fx-opacity: 0;
+}
+
+.toggle-chip:selected > .box > .mark {
+    -fx-background-color: -color-paper;
+    -fx-opacity: 1;
 }
 
 .combo-box {
