@@ -139,8 +139,17 @@ Use flat sage fill for btn-primary, flat clay fill for btn-danger, and paper fil
 .btn-primary:focused,
 .btn-secondary:focused,
 .btn-danger:focused,
-.combo-box:focused,
-.check-box:focused {
+.combo-box:focused {
+    -fx-border-color: -color-sage;
+    -fx-border-width: 2;
+}
+
+.toggle-chip:focused {
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+}
+
+.toggle-chip:focused > .box {
     -fx-border-color: -color-sage;
     -fx-border-width: 2;
 }
@@ -152,7 +161,7 @@ Use color-monitor for image-viewport, a modest 8-10 px radius, and a thin color-
 
 - [x] Step 5: Style labels, toggles, status, and combo box
 
-Use sentence-case typography, color-ink for primary text, color-muted-ink for metadata, sage for selected toggles/status, and clay for danger/update attention. Remove all-caps styling from section headings. Add status-caption and status-update classes if referenced by FXML or UIManager.
+Use sentence-case typography, color-ink for primary text, color-muted-ink for metadata, sage for selected toggles/status, and clay for danger/update attention. Render selected toggle boxes as solid sage squares without check glyphs, and keep their keyboard focus ring on the square rather than the label. Remove all-caps styling from section headings. Add status-caption and status-update classes if referenced by FXML or UIManager.
 
 - [x] Step 6: Check CSS for removed visual patterns
 

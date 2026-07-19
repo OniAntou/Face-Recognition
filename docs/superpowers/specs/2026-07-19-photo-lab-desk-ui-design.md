@@ -108,12 +108,12 @@ Implementation details:
 - `SYSTEM STATUS` becomes `Status`.
 - Keep engine and exposure values dynamic; only change their surrounding labels and visual emphasis.
 
-Checkboxes remain native-looking controls with a sage selected state. Buttons use flat fills and a one-pixel border; the stop action uses clay without a gradient.
+Checkboxes remain native-looking controls with a sage selected state. A selected checkbox uses a solid sage box without a check glyph, while keyboard focus is shown around the box only instead of framing the label. Buttons use flat fills and a one-pixel border; the stop action uses clay without a gradient.
 
 ## Accessibility and behavior
 
 - Preserve keyboard traversal order: camera selector, camera action, image action, then processing options.
-- Maintain visible hover/focus states using border and fill changes, not glow effects.
+- Maintain visible hover/focus states using border and fill changes, not glow effects; keep checkbox focus limited to the control box.
 - Keep text contrast at or above normal desktop readability against the new light surfaces.
 - Do not use color alone for active/error states; retain text labels and the existing status messages.
 - Do not change controller IDs or event method names unless the current FXML requires it.

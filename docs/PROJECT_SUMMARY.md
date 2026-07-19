@@ -17,7 +17,7 @@
 - Connected adaptive exposure to the camera capture loop and improved camera shutdown/error cleanup.
 - Corrected `MatPool` ownership and empty-matrix return behavior.
 - Replaced unsafe directory string-prefix checks with normalized path-boundary checks.
-- Redesigned the JavaFX presentation as a Photo Lab Desk UI with a warm light workspace, dark monitor viewports, flat controls, and sentence-case English copy.
+- Redesigned the JavaFX presentation as a Photo Lab Desk UI with a warm light workspace, dark monitor viewports, flat controls, sentence-case English copy, and focused checkbox styling that keeps selection/focus inside the control box.
 
 ### Security and release
 
